@@ -1,0 +1,1329 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clase MongoDB</title>
+<style>
+:root {
+  --fondo: #f7f6f1;
+  --papel: #ffffff;
+  --tinta: #17201c;
+  --tenue: #5b6862;
+  --linea: #d9ddd6;
+  --verde: #00684a;
+  --verde-claro: #e2f2ea;
+  --verde-vivo: #13aa52;
+  --ambar: #b45309;
+  --ambar-claro: #fdf0dc;
+  --rojo: #b42318;
+  --rojo-claro: #fde7e4;
+  --azul: #1d4ed8;
+  --azul-claro: #e3ebfd;
+  --codigo-fondo: #10201a;
+  --codigo-tinta: #e6efe9;
+  --sans: "Inter", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --mono: "JetBrains Mono", "Cascadia Code", "Fira Code", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #0d1512; overflow: hidden; font-family: var(--sans); color: var(--tinta); }
+
+/* ---------- escenario 16:9 escalado ---------- */
+.escenario { position: absolute; width: 1280px; height: 720px; left: 50%; top: 50%; transform-origin: center center; }
+section.slide {
+  position: absolute; inset: 0; background: var(--fondo); display: none; overflow: hidden;
+}
+section.slide.activa { display: block; }
+section.slide.excluida { display: none !important; }
+.contenido { position: absolute; inset: 0; padding: 58px 64px 46px; overflow: hidden; display: flex; flex-direction: column; gap: 18px; }
+.marca-bloque { position: absolute; top: 18px; left: 64px; font-size: 14px; letter-spacing: .08em; text-transform: uppercase; color: var(--verde); font-weight: 600; z-index: 2; }
+.numero { position: absolute; bottom: 14px; right: 24px; font-size: 13px; color: var(--tenue); font-variant-numeric: tabular-nums; z-index: 2; }
+.progreso { position: fixed; left: 0; bottom: 0; height: 4px; background: var(--verde-vivo); transition: width .3s ease; z-index: 30; }
+aside.notas { display: none; }
+
+h1 { font-size: 64px; line-height: 1.05; margin: 0; letter-spacing: -.02em; }
+h2 { font-size: 40px; line-height: 1.1; margin: 0; letter-spacing: -.01em; }
+h3 { font-size: 24px; margin: 0; color: var(--verde); }
+p, li { font-size: 24px; line-height: 1.4; margin: 0; }
+ul { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 10px; }
+.sub { color: var(--tenue); font-size: 22px; }
+.chico, .chico li { font-size: 19px; }
+code, .mono { font-family: var(--mono); font-size: .9em; }
+:not(pre) > code { background: var(--verde-claro); color: var(--verde); padding: 1px 6px; border-radius: 5px; white-space: nowrap; }
+b, strong { font-weight: 700; }
+.verde { color: var(--verde); } .rojo { color: var(--rojo); } .ambar { color: var(--ambar); } .tenue { color: var(--tenue); }
+
+/* ---------- layout ---------- */
+.fila { display: flex; gap: 28px; align-items: flex-start; min-height: 0; }
+.fila > * { flex: 1; min-width: 0; }
+.col-angosta { flex: 0 0 38% !important; }
+.centrado { justify-content: center; align-items: center; text-align: center; }
+.tarjeta { background: var(--papel); border: 1px solid var(--linea); border-radius: 14px; padding: 18px 22px; }
+.tarjeta h3 { margin-bottom: 8px; }
+.tarjeta.verde { background: var(--verde-claro); border-color: #b9dccb; }
+.tarjeta.rojo { background: var(--rojo-claro); border-color: #f3b8b0; }
+.tarjeta.ambar { background: var(--ambar-claro); border-color: #f1cf9d; }
+.tarjeta.azul { background: var(--azul-claro); border-color: #b8c8f5; }
+.etiqueta { display: inline-block; font-size: 15px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: var(--verde-claro); color: var(--verde); }
+.etiqueta.rojo { background: var(--rojo-claro); color: var(--rojo); }
+.etiqueta.ambar { background: var(--ambar-claro); color: var(--ambar); }
+.pregunta { font-size: 26px; font-weight: 600; color: var(--azul); }
+.grande { font-size: 30px; }
+.enorme { font-size: 88px; font-weight: 800; letter-spacing: -.03em; line-height: 1; }
+.enunciado { font-size: 21px; color: var(--tenue); border-left: 4px solid var(--verde); padding-left: 14px; }
+
+/* ---------- pasos ---------- */
+.paso { opacity: 0; transform: translateY(10px); transition: opacity .35s ease, transform .35s ease; }
+.paso.visible { opacity: 1; transform: none; }
+.paso.solo-tachar.visible { text-decoration: line-through; opacity: .45; }
+
+/* ---------- código ---------- */
+pre.codigo {
+  margin: 0; background: var(--codigo-fondo); color: var(--codigo-tinta); border-radius: 12px;
+  padding: 14px 20px; font-family: var(--mono); font-size: 22px; line-height: 1.38; overflow: hidden; white-space: pre;
+}
+pre.codigo.chico { font-size: 20px; }
+pre.codigo.mini { font-size: 18px; }
+pre.codigo .linea.salto { color: #7f9a8d; }
+pre.codigo .linea { display: block; transition: opacity .3s ease, background .3s ease; border-radius: 4px; }
+pre.codigo .linea.atenuada { opacity: .38; }
+pre.codigo .linea.resaltada { background: rgba(19,170,82,.18); box-shadow: -20px 0 0 rgba(19,170,82,.18), 20px 0 0 rgba(19,170,82,.18); }
+pre.codigo .linea.error { background: rgba(240,80,60,.22); box-shadow: -20px 0 0 rgba(240,80,60,.22), 20px 0 0 rgba(240,80,60,.22); }
+.tk-com { color: #7f9a8d; font-style: italic; }
+.tk-str { color: #f4c87a; }
+.tk-num { color: #f59e8b; }
+.tk-op  { color: #5fe3a1; font-weight: 600; }
+.tk-key { color: #9cc9ff; }
+.tk-kw  { color: #e7a6ff; }
+.tk-rx  { color: #ffa7c4; }
+
+/* ---------- resultados ---------- */
+.resultado { background: var(--papel); border: 1px solid var(--linea); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
+.resultado .cab { display: flex; justify-content: space-between; align-items: center; padding: 7px 14px; background: #eef1ec; font-size: 14px; color: var(--tenue); font-weight: 600; letter-spacing: .03em; }
+.resultado .cab .total { color: var(--verde); }
+.resultado.vacio .cab .total { color: var(--rojo); }
+.resultado table { border-collapse: collapse; width: 100%; font-size: 17px; table-layout: fixed; }
+.resultado th { text-align: left; font-weight: 600; color: var(--tenue); font-size: 14px; padding: 6px 14px; border-bottom: 1px solid var(--linea); font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.resultado td { padding: 5px 14px; border-bottom: 1px solid #eef0ec; font-family: var(--mono); white-space: normal; overflow-wrap: normal; vertical-align: top; }
+.resultado tr:last-child td { border-bottom: 0; }
+.resultado td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.resultado pre.json { margin: 0; padding: 10px 14px; font-family: var(--mono); font-size: 15px; line-height: 1.35; white-space: pre-wrap; word-break: break-word; overflow: hidden; }
+.resultado .vacio-msg { padding: 18px 16px; font-family: var(--mono); font-size: 22px; color: var(--rojo); }
+.resultado .vacio-msg small { display: block; font-family: var(--sans); font-size: 16px; color: var(--tenue); margin-top: 4px; }
+.resultado.chico table { font-size: 15px; } .resultado.chico td { padding: 3px 12px; }
+.falta-captura { background: var(--rojo-claro); color: var(--rojo); border: 2px dashed var(--rojo); padding: 12px; border-radius: 10px; font-weight: 700; }
+
+/* barras (shards) */
+.barras { display: flex; align-items: flex-end; gap: 10px; height: 210px; padding: 12px 14px 0; }
+.barras .b { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 4px; min-width: 0; }
+.barras .b .v { font-size: 14px; font-family: var(--mono); color: var(--tenue); }
+.barras .b .r { width: 100%; background: var(--verde-vivo); border-radius: 6px 6px 0 0; transform-origin: bottom; transform: scaleY(0); transition: transform .8s cubic-bezier(.2,.8,.2,1); }
+.barras .b.caliente .r { background: var(--rojo); }
+.barras .b .l { font-size: 14px; color: var(--tenue); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; padding-bottom: 8px; }
+.barras.angostas { gap: 3px; } .barras.angostas .b .v { display: none; } .barras.angostas .b .l { font-size: 11px; }
+section.slide.activa .barras.listo .b .r { transform: scaleY(1); }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 18px; padding: 14px 18px; font-size: 20px; }
+.kv dt { color: var(--tenue); } .kv dd { margin: 0; font-family: var(--mono); font-weight: 600; }
+
+/* ---------- índice ---------- */
+.boton-indice { position: fixed; top: 12px; left: 12px; z-index: 40; width: 40px; height: 40px; border-radius: 10px; border: 1px solid rgba(255,255,255,.18); background: rgba(16,32,26,.75); color: #fff; font-size: 20px; cursor: pointer; opacity: .35; transition: opacity .2s; }
+.boton-indice:hover, .boton-indice:focus-visible { opacity: 1; }
+.indice { position: fixed; top: 0; left: 0; bottom: 0; width: 340px; background: #10201a; color: #dce8e1; z-index: 35; transform: translateX(-100%); transition: transform .28s ease; overflow-y: auto; padding: 64px 0 24px; font-size: 15px; }
+.indice.abierto { transform: none; box-shadow: 8px 0 30px rgba(0,0,0,.35); }
+.indice a { display: flex; gap: 10px; padding: 6px 22px; color: inherit; text-decoration: none; cursor: pointer; line-height: 1.3; }
+.indice a:hover { background: rgba(255,255,255,.06); }
+.indice a .n { color: #7f9a8d; font-variant-numeric: tabular-nums; min-width: 22px; text-align: right; }
+.indice a.actual { background: rgba(19,170,82,.2); color: #fff; box-shadow: inset 3px 0 0 var(--verde-vivo); }
+.indice .bloque { margin-top: 10px; }
+.indice .bloque-titulo { padding: 10px 22px 6px; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: #5fe3a1; font-weight: 700; cursor: pointer; display: flex; justify-content: space-between; }
+.indice .bloque.colapsado .lista { display: none; }
+.indice .bloque-titulo::after { content: "▾"; color: #7f9a8d; }
+.indice .bloque.colapsado .bloque-titulo::after { content: "▸"; }
+.indice .ayuda { padding: 18px 22px 0; color: #7f9a8d; font-size: 13px; line-height: 1.6; }
+.indice .ayuda kbd { font-family: var(--mono); background: rgba(255,255,255,.08); padding: 1px 6px; border-radius: 4px; }
+
+/* ---------- notas ---------- */
+.panel-notas { position: fixed; left: 50%; bottom: 14px; transform: translate(-50%, 140%); width: min(900px, 92vw); max-height: 38vh; overflow-y: auto; background: rgba(16,32,26,.95); color: #e6efe9; padding: 16px 22px; border-radius: 14px; z-index: 36; font-size: 17px; line-height: 1.5; transition: transform .25s ease; }
+.panel-notas.visible { transform: translate(-50%, 0); }
+.panel-notas ul { padding-left: 1.1em; gap: 4px; } .panel-notas li { font-size: 17px; }
+
+/* ---------- diagramas ---------- */
+.doc { background: var(--papel); border: 1.5px solid var(--linea); border-radius: 12px; padding: 10px 14px; font-family: var(--mono); font-size: 16px; line-height: 1.45; white-space: pre; }
+.doc .k { color: var(--azul); } .doc .s { color: var(--ambar); } .doc .n { color: var(--rojo); }
+.doc.nuevo { border-color: var(--verde-vivo); box-shadow: 0 0 0 4px rgba(19,170,82,.15); }
+.tabla-sql { border-collapse: collapse; font-family: var(--mono); font-size: 16px; background: var(--papel); }
+.tabla-sql th, .tabla-sql td { border: 1px solid var(--linea); padding: 5px 10px; text-align: left; white-space: nowrap; }
+.tabla-sql th { background: #eef1ec; font-weight: 600; }
+.tabla-sql td.null { color: #a3aca7; font-style: italic; }
+.flecha { font-size: 34px; color: var(--verde); align-self: center; flex: 0 0 auto !important; }
+.campo-nuevo { background: rgba(19,170,82,.16); border-radius: 4px; }
+.equivalencias { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px 18px; align-items: center; font-size: 26px; }
+.equivalencias .izq { text-align: right; font-family: var(--mono); }
+.equivalencias .der { font-family: var(--mono); color: var(--verde); font-weight: 600; }
+
+@keyframes aparecer { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: none; } }
+@keyframes latido { 0%,100% { box-shadow: 0 0 0 0 rgba(19,170,82,.45); } 50% { box-shadow: 0 0 0 12px rgba(19,170,82,0); } }
+@keyframes caer { 0% { opacity: 1; } 100% { opacity: .25; filter: grayscale(1); } }
+@keyframes viajar { 0% { left: 0; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { left: calc(100% - 18px); opacity: 0; } }
+@keyframes pulso-linea { 0%,100% { stroke-opacity: .25; } 50% { stroke-opacity: 1; } }
+.aparece { animation: aparecer .7s cubic-bezier(.2,.8,.2,1) both; }
+
+/* pipeline animado */
+.tuberia { display: flex; align-items: center; gap: 0; }
+.tuberia .etapa { background: var(--papel); border: 2px solid var(--verde); color: var(--verde); font-family: var(--mono); font-weight: 700; font-size: 20px; border-radius: 12px; padding: 14px 16px; text-align: center; position: relative; z-index: 1; min-width: 120px; }
+.tuberia .etapa small { display: block; font-family: var(--sans); font-weight: 500; color: var(--tenue); font-size: 14px; margin-top: 4px; }
+.tuberia .tubo { flex: 1; height: 10px; background: var(--verde-claro); position: relative; min-width: 40px; }
+.tuberia .tubo i { position: absolute; top: -4px; width: 18px; height: 18px; border-radius: 4px; background: var(--verde-vivo); opacity: 0; }
+section.slide.activa .tuberia.anim .tubo i { animation: viajar 2.4s linear infinite; }
+.tuberia .tubo i:nth-child(2) { animation-delay: .8s !important; } .tuberia .tubo i:nth-child(3) { animation-delay: 1.6s !important; }
+
+/* nodos (replicación / sharding) */
+.nodo { border-radius: 14px; border: 2px solid var(--verde); background: var(--papel); padding: 12px 16px; text-align: center; font-weight: 600; font-size: 19px; position: relative; transition: all .4s ease; }
+.nodo small { display: block; font-weight: 500; font-size: 14px; color: var(--tenue); margin-top: 3px; }
+.nodo.primario { background: var(--verde); color: #fff; } .nodo.primario small { color: #cdebdc; }
+.nodo.caido { animation: caer .6s forwards; border-color: var(--rojo); }
+.nodo.latiendo { animation: latido 1.4s ease-in-out infinite; }
+.nodo.router { border-color: var(--azul); color: var(--azul); }
+.nodo.apagado { opacity: .35; }
+svg text { font-family: var(--sans); }
+</style>
+</head>
+<body>
+<button class="boton-indice" title="Índice (M)" aria-label="Abrir índice">☰</button>
+<nav class="indice" aria-label="Índice"></nav>
+<div class="panel-notas" aria-live="polite"></div>
+<div class="progreso"></div>
+<main class="escenario">
+
+<!-- ===================================================================== PORTADA -->
+<section class="slide" data-bloque="0" data-titulo="Portada">
+  <div class="contenido centrado" style="display:flex">
+    <span class="etiqueta">Base de Datos · FIUBA</span>
+    <h1>MongoDB<br><span class="verde">más allá de la sintaxis</span></h1>
+    <p class="sub">Documentos, índices, réplicas, shards y el pipeline de agregación<br>— para terminar resolviendo un ejercicio de parcial</p>
+  </div>
+  <aside class="notas"><ul><li>Navegación: flechas / espacio. <b>M</b> índice, <b>N</b> notas, <b>F</b> pantalla completa.</li></ul></aside>
+</section>
+
+<!-- ===================================================================== BLOQUE 1 -->
+<section class="slide" data-bloque="1" data-titulo="¿Por qué NoSQL?">
+  <div class="contenido">
+    <h2>¿Por qué aparecen las bases NoSQL?</h2>
+    <p class="sub">Alrededor del 2000, con la Web masiva, las bases relacionales empiezan a quedar chicas en cuatro frentes:</p>
+    <div class="fila" style="margin-top:10px">
+      <div class="tarjeta paso"><h3>Escalabilidad</h3><p class="chico">Volúmenes de datos que no entran en una máquina (BigTable, 2005).</p></div>
+      <div class="tarjeta paso"><h3>Performance web</h3><p class="chico">Formatos fáciles de serializar y servir: JSON (1999).</p></div>
+      <div class="tarjeta paso"><h3>Flexibilidad</h3><p class="chico">Que la estructura evolucione sin <code>ALTER TABLE</code> sobre millones de filas.</p></div>
+      <div class="tarjeta paso"><h3>Distribución</h3><p class="chico">Replicar y fragmentar automáticamente: disponibilidad y tolerancia a fallas.</p></div>
+    </div>
+    <p class="paso pregunta" style="margin-top:auto">Hoy usamos MongoDB para ver <u>cómo</u> resuelve cada uno… y qué <u>cuesta</u>.</p>
+  </div>
+  <aside class="notas"><ul><li>NoSQL Parte I, p. 4-5.</li><li>Las 4 necesidades son el hilo de la clase: flexibilidad (bloque 1), escalabilidad y distribución (bloque 2), procesamiento (bloque 3).</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="1" data-titulo="Tabla vs colección">
+  <div class="contenido">
+    <h2>Mismo mundo, otras palabras</h2>
+    <div class="equivalencias" style="margin-top:24px">
+      <span class="izq paso" data-paso="1">database / schema</span><span class="flecha paso" data-paso="1">→</span><span class="der paso" data-paso="1">database</span>
+      <span class="izq paso" data-paso="2">tabla</span><span class="flecha paso" data-paso="2">→</span><span class="der paso" data-paso="2">colección</span>
+      <span class="izq paso" data-paso="3">fila</span><span class="flecha paso" data-paso="3">→</span><span class="der paso" data-paso="3">documento (JSON / BSON)</span>
+      <span class="izq paso" data-paso="4">columna</span><span class="flecha paso" data-paso="4">→</span><span class="der paso" data-paso="4">campo</span>
+      <span class="izq paso" data-paso="5">JOIN</span><span class="flecha paso" data-paso="5">→</span><span class="der paso" data-paso="5">documento embebido (o $lookup)</span>
+    </div>
+    <p class="paso sub" data-paso="6" style="margin-top:auto">BSON = JSON binario con más tipos: <code>Date</code>, <code>ObjectId</code>, enteros de 32/64 bits, decimales… <b>Pero sin un esquema que lo controle.</b></p>
+  </div>
+  <aside class="notas"><ul><li>Diapo de la cátedra, "Terminología".</li><li>Remarcar: la equivalencia es aproximada; lo distinto es que el documento puede tener estructura anidada y variable.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="1" data-titulo="Conductores y autos">
+  <div class="contenido">
+    <h2>El ejemplo de siempre: conductores y autos</h2>
+    <div class="fila">
+      <div>
+        <h3>Relacional</h3>
+        <table class="tabla-sql" style="margin:8px 0 14px"><tr><th>patente</th><th>marca</th><th>modelo</th><th>DNI ↗</th></tr>
+          <tr><td>BG 135 ZT</td><td>Toyota</td><td>Etios</td><td>21222324</td></tr>
+          <tr><td>AA 937 BR</td><td>Fiat</td><td>Uno</td><td>30123456</td></tr></table>
+        <table class="tabla-sql"><tr><th>DNI</th><th>nombre</th><th>apellido</th></tr>
+          <tr><td>21222324</td><td>Graciela</td><td>López</td></tr><tr><td>30123456</td><td>Juan</td><td>Pérez</td></tr></table>
+        <p class="chico tenue" style="margin-top:10px">El auto <b>referencia</b> al conductor. Para mostrar ambos: <code>JOIN</code>.</p>
+      </div>
+      <div>
+        <h3>Documentos</h3>
+<div class="doc" style="margin-top:8px">{
+  <span class="k">_id</span>: <span class="s">"BG 135 ZT"</span>,
+  <span class="k">marca</span>: <span class="s">"Toyota"</span>, <span class="k">modelo</span>: <span class="s">"Etios"</span>,
+  <span class="k">amenities</span>: [<span class="s">"airbag"</span>, <span class="s">"ABS"</span>],<span class="paso" data-paso="1">
+  <span class="k">dueño</span>: {                  <span class="tenue">← embebido</span>
+    <span class="k">_id</span>: <span class="n">21222324</span>,
+    <span class="k">nombre</span>: <span class="s">"Graciela"</span>, <span class="k">apellido</span>: <span class="s">"López"</span>
+  }</span>
+}</div>
+      </div>
+    </div>
+    <p class="paso pregunta" data-paso="2">Si Graciela tiene 3 autos… ¿cuántas copias de Graciela guardamos? ¿Y si se cambia el apellido?</p>
+  </div>
+  <aside class="notas"><ul><li>Diapos 13-17 de la cátedra.</li><li>Primero mostrar que el array <code>amenities</code> en SQL sería otra tabla.</li><li>Embebido = lectura en un solo acceso, a cambio de duplicación (anomalías de actualización).</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="1" data-titulo="Un tweet real">
+  <div class="contenido">
+    <h2>Un documento real de la base del taller</h2>
+    <div class="fila">
+<div class="doc" style="font-size:15px">{
+  <span class="k">_id</span>: <span class="s">"1143999922708144128"</span>,
+  <span class="k">created_at</span>: ISODate(<span class="s">"2019-06-26T21:50:10Z"</span>),
+  <span class="k">full_text</span>: <span class="s">"I was out cycling 84.15 km with #Endomondo…"</span>,
+  <span class="k">lang</span>: <span class="s">"en"</span>, <span class="k">retweet_count</span>: <span class="n">0</span>,
+  <span class="k">user_id</span>: <span class="s">"128984608"</span>,
+<span data-en-paso="1" data-agregar="campo-nuevo">  <span class="k">user</span>: { <span class="k">name</span>: <span class="s">"Guillermo Fried"</span>,
+          <span class="k">screen_name</span>: <span class="s">"gffried"</span>, … },</span>
+<span data-en-paso="2" data-agregar="campo-nuevo">  <span class="k">entities</span>: {
+    <span class="k">hashtags</span>: [ { <span class="k">text</span>: <span class="s">"Endomondo"</span> }, { <span class="k">text</span>: <span class="s">"endorphins"</span> } ],
+    <span class="k">user_mentions</span>: [ ], …
+  },</span>
+<span data-en-paso="3" data-agregar="campo-nuevo">  <span class="k">geo</span>: { <span class="k">type</span>: <span class="s">"Point"</span>, <span class="k">coordinates</span>: [<span class="n">48.56</span>, <span class="n">13.42</span>] },
+  <span class="k">place</span>: { <span class="k">country</span>: <span class="s">"Alemania"</span>, <span class="k">full_name</span>: <span class="s">"Passau, Alemania"</span>, … },</span>
+  …
+}</div>
+      <div class="col-angosta" style="display:flex;flex-direction:column;gap:12px">
+        <div class="tarjeta paso" data-paso="1"><b>user</b> está <b>embebido</b>: el tweet trae una copia del usuario.</div>
+        <div class="tarjeta paso" data-paso="2"><b>hashtags</b> es un <b>array de objetos</b>: en SQL sería otra tabla.</div>
+        <div class="tarjeta paso" data-paso="3"><b>geo</b> no es un país: son coordenadas (y es <code>null</code> en el 99,9%). El país está en <code>place.country</code>.</div>
+        <div class="tarjeta ambar paso" data-paso="4"><b>retweeted_status</b> aparece solo en el 53% de los documentos.</div>
+      </div>
+    </div>
+  </div>
+  <aside class="notas"><ul><li>Base del taller: 100.000 tweets, todos del 26/06/2019, 54.877 usuarios distintos.</li><li>Lo de <code>geo</code> lo vamos a necesitar en E3.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="1" data-titulo="Extensibilidad">
+  <div class="contenido">
+    <h2>Extensibilidad: el esquema lo tiene cada documento</h2>
+    <div class="fila">
+      <div>
+        <h3>Relacional</h3>
+<pre class="codigo mini" data-lang="sql">ALTER TABLE tweets ADD retweeted_id bigint;
+ALTER TABLE tweets ADD quoted_id bigint;</pre>
+        <table class="tabla-sql" style="margin-top:12px"><tr><th>id</th><th>texto</th><th>retweeted_id</th><th>quoted_id</th></tr>
+          <tr><td>…128</td><td>I was out…</td><td class="null">NULL</td><td class="null">NULL</td></tr>
+          <tr><td>…816</td><td>RT @martu…</td><td>…3312</td><td class="null">NULL</td></tr>
+          <tr><td>…057</td><td>Qué partido</td><td class="null">NULL</td><td class="null">NULL</td></tr></table>
+        <p class="chico tenue" style="margin-top:8px">Todas las filas pagan la columna. En tablas grandes, el <code>ALTER</code> puede bloquear.</p>
+      </div>
+      <div>
+        <h3>Documentos</h3>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px">
+<div class="doc">{ <span class="k">_id</span>: <span class="s">"…128"</span>, <span class="k">text</span>: <span class="s">"I was out…"</span> }</div>
+<div class="doc paso" data-anim="nuevo">{ <span class="k">_id</span>: <span class="s">"…816"</span>, <span class="k">text</span>: <span class="s">"RT @martu…"</span>,
+  <span class="k campo-nuevo">retweeted_status</span>: { <span class="k">user</span>: {…}, … } }</div>
+<div class="doc">{ <span class="k">_id</span>: <span class="s">"…057"</span>, <span class="k">text</span>: <span class="s">"Qué partido"</span> }</div>
+        </div>
+        <p class="chico tenue paso" style="margin-top:8px">52.802 de 100.000 tienen <code>retweeted_status</code>. Los demás, simplemente no lo tienen.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="notas"><ul><li>Pro: agregar un campo es escribir un documento con ese campo. Cero migraciones.</li><li>La pregunta para la próxima: ¿quién garantiza entonces que los campos se llamen bien?</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="1" data-titulo="Desde el código">
+  <div class="contenido">
+    <h2>Desde el código: el documento <span class="verde">es</span> el objeto</h2>
+    <div class="fila">
+<pre class="codigo mini" data-lang="py">tweet = db.tweets.find_one({"place.country": "Argentina"})
+
+tweet["user"]["name"]                  # sin JOIN
+[h["text"] for h in tweet["entities"]["hashtags"]]
+
+rt = tweet.get("retweeted_status")     # puede no estar
+if rt:
+    print("retweet de", rt["user"]["screen_name"])
+
+db.tweets.insert_one({
+    "text": "hola",
+    "es_sospechoso": True,   # campo nuevo
+})</pre>
+      <div class="col-angosta" style="display:flex;flex-direction:column;gap:12px">
+        <div class="tarjeta verde paso"><h3>A favor</h3><ul class="chico"><li>Un <code>dict</code>/JSON va y viene sin ORM.</li><li>Leer un tweet completo = 1 acceso.</li><li>Campos nuevos sin migración.</li></ul></div>
+        <div class="tarjeta rojo paso"><h3>En contra</h3><ul class="chico"><li>El esquema vive en el código: hay que usar <code>.get()</code> y validar a mano.</li><li>Un typo en un campo <b>no es un error</b>…</li></ul></div>
+      </div>
+    </div>
+  </div>
+  <aside class="notas"><ul><li>En vivo: <code>python3 python/demo_documentos.py</code> muestra exactamente esto con la base real.</li><li>Ejercicios del taller en pymongo, con el tweet modelado como dataclass: <code>python/ejemplos/</code> (01_find, 02_aggregate, 03_abm).</li><li>Dato para contar: el tweet embebido en <code>retweeted_status</code> tiene otra forma (<code>id_str</code>, fecha como string). Nadie lo valida al guardar; lo descubre el código.</li><li>Mencionar <code>$jsonSchema</code> como validación opcional del lado de Mongo.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="1" data-titulo="E1 · Tweets de un usuario">
+  <div class="contenido">
+    <h2>E1 · Tweets de un usuario</h2>
+    <p class="enunciado">Hallar los tweets del usuario con userid '818839458'. <span class="chico">(No está en la base reducida: usamos el más activo.)</span></p>
+    <pre class="codigo" data-clave="E01" data-resaltar="4"></pre>
+    <div class="resultado paso" data-clave="E01" data-max="5" data-cols="_id,user.screen_name,created_at,retweet_count"></div>
+  </div>
+  <aside class="notas"><ul><li>El usuario del enunciado no está en la base reducida (daría [] sin error): usamos el más activo.</li><li>Ojo con el tipo: <code>"188068413"</code> es string; con el número no matchea.</li><li>En vivo: <code>python3 python/execute_query.py E1 --pymongo</code>.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="1" data-titulo="E2 · Más de 500k retweets">
+  <div class="contenido">
+    <h2>E2 · Operadores de comparación</h2>
+    <p class="enunciado">Hallar aquellos tweets que tengan más de 500000 retweets.</p>
+    <pre class="codigo" data-clave="E02" data-resaltar="2"></pre>
+    <div class="resultado paso" data-clave="E02" data-cols="user.screen_name,retweet_count,full_text"></div>
+    <p class="chico tenue paso"><code>$gt</code> <code>$gte</code> <code>$lt</code> <code>$lte</code> <code>$ne</code> <code>$in</code> <code>$nin</code> — el segundo argumento de <code>find</code> es la <b>proyección</b> (el SELECT).</p>
+  </div>
+  <aside class="notas"><ul><li>Un solo tweet en toda la base supera 500k.</li><li>Ese tweet es un retweet: su <code>retweet_count</code> es el del original. Lo retomamos en E11.</li></ul></aside>
+</section>
+
+<section class="slide opcional" data-requiere="errores/E03" data-bloque="1" data-titulo="El costo del schemaless">
+  <div class="contenido">
+    <h2>El costo del schemaless <span class="etiqueta rojo">error frecuente</span></h2>
+    <p class="enunciado">E3 · Mostrar la cantidad de retweets de los tweets que se hayan hecho desde Argentina o Brasil.</p>
+    <div class="fila">
+      <pre class="codigo chico" data-clave="errores/E03" data-error="2"></pre>
+      <div class="resultado col-angosta" data-clave="errores/E03"></div>
+    </div>
+    <div class="fila paso">
+<pre class="codigo chico" data-lang="sql">SELECT retweet_count FROM tweets WHERE pais IN ('Argentina', 'Brasil');
+-- ERROR: column "pais" does not exist</pre>
+    </div>
+    <p class="paso grande">El motor relacional <b>conoce</b> el esquema y se queja. Mongo no: <span class="rojo">un campo mal elegido es un resultado vacío</span>.</p>
+  </div>
+  <aside class="notas"><ul><li>Error real de una entrega: <code>geo</code> existe, pero es GeoJSON.</li><li>Moraleja práctica: mirar un documento (<code>findOne()</code>) antes de consultar.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="1" data-titulo="E3 · Argentina o Brasil">
+  <div class="contenido">
+    <h2>E3 · <code>$in</code> y campos anidados</h2>
+    <p class="enunciado">Mostrar la cantidad de retweets de los tweets que se hayan hecho desde Argentina o Brasil.</p>
+    <pre class="codigo chico" data-clave="E03" data-resaltar="3" data-lineas="1-5"></pre>
+    <div class="fila">
+      <div class="resultado paso" data-clave="E03" data-max="5" data-cols="place.country,retweet_count"></div>
+      <div class="tarjeta paso"><p class="chico"><code>"place.country"</code>: la <b>notación de punto</b> entra en subdocumentos (y en arrays).</p><p class="chico" style="margin-top:8px">¿Y la <b>suma</b> de retweets? Con <code>find</code> no se puede: hace falta <code>aggregate</code> (bloque 3).</p></div>
+    </div>
+  </div>
+  <aside class="notas"><ul><li>2.678 de Argentina, 12 de Brasil: 97% de los tweets no tiene <code>place</code>.</li><li><code>$in</code> equivale a un <code>$or</code> sobre el mismo campo.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="1" data-titulo="E4 · AND implícito">
+  <div class="contenido">
+    <h2>E4 · Varias condiciones = AND</h2>
+    <p class="enunciado">Hallar los usuarios que tengan tweets con 200000 o más retweets y sean en idioma español.</p>
+    <pre class="codigo" data-clave="E04" data-resaltar="3-4" data-lineas="1-7"></pre>
+    <div class="fila">
+      <div class="resultado paso" data-clave="E04" data-cols="user.screen_name,retweet_count"></div>
+      <div class="tarjeta ambar paso"><p class="chico">Devuelve un documento <b>por tweet</b>: un usuario puede repetirse.</p><pre class="codigo mini" style="margin-top:8px">db.tweets.distinct("user.screen_name", {...})</pre></div>
+    </div>
+  </div>
+  <aside class="notas"><ul><li><code>$and</code> explícito hace falta solo si repetís la misma clave dos veces.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="1" data-titulo="E5 · $ne null y $nin">
+  <div class="contenido">
+    <h2>E5 · ¿Tiene el campo? <code>$ne: null</code> y <code>$nin</code></h2>
+    <p class="enunciado">Mostrar la cantidad de retweets para los tweets que no se hayan hecho en Argentina ni Brasil, pero sí tengan un lugar definido y sean en español.</p>
+    <pre class="codigo chico" data-clave="E05" data-resaltar="4-5" data-lineas="1-8"></pre>
+    <div class="fila">
+      <div class="resultado paso chico" data-clave="E05" data-max="4" data-cols="place.country,place.full_name,retweet_count"></div>
+      <div class="tarjeta paso"><p class="chico"><code>{place: {$ne: null}}</code> excluye <b>null y ausente</b>.<br><code>{$exists: true}</code> excluye solo el ausente.</p><p class="chico" style="margin-top:8px">¿Hace falta <code>aggregate</code>? <b>No</b>: es filtro + proyección.</p></div>
+    </div>
+  </div>
+  <aside class="notas"><ul><li>Una solución del taller usaba <code>user.location</code> con regex: es otra cosa (lo que el usuario escribió en su perfil), no dónde se hizo el tweet.</li></ul></aside>
+</section>
+
+<section class="slide opcional" data-requiere="errores/E04" data-bloque="1" data-titulo="Más errores silenciosos">
+  <div class="contenido">
+    <h2>Dos más, mismo patrón <span class="etiqueta rojo">error frecuente</span></h2>
+    <div class="fila">
+      <div style="display:flex;flex-direction:column;gap:10px"><pre class="codigo chico" data-clave="errores/E04" data-error="4"></pre><div class="resultado" data-clave="errores/E04"></div></div>
+      <div style="display:flex;flex-direction:column;gap:10px"><pre class="codigo chico" data-clave="errores/E06" data-error="2"></pre><div class="resultado" data-clave="errores/E06"></div></div>
+    </div>
+    <p class="paso grande"><code>language</code> no existe (es <code>lang</code>). <code>name</code> no está en la raíz (es <code>user.name</code>).</p>
+  </div>
+  <aside class="notas"><ul><li>Errores reales de entregas del taller.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="1" data-titulo="E6 · Regex y embebidos">
+  <div class="contenido">
+    <h2>E6 · Regex sobre un documento embebido</h2>
+    <p class="enunciado">Mostrar los screen name de aquellos usuarios que tengan "Juan" como parte de su nombre.</p>
+    <pre class="codigo" data-clave="E06" data-resaltar="2"></pre>
+    <div class="resultado paso" data-clave="E06" data-max="6" data-cols="user.name,user.screen_name"></div>
+  </div>
+  <aside class="notas"><ul><li>1.169 tweets: de nuevo, son tweets, no usuarios únicos (ver <code>distinct</code>).</li><li><code>/Juan/i</code> ignora mayúsculas. Una regex sin ancla no puede usar bien un índice.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="1" data-titulo="E7 · Cursor: sort + limit">
+  <div class="contenido">
+    <h2>E7 · El cursor: <code>sort</code> + <code>limit</code></h2>
+    <p class="enunciado">Mostrar de los 10 tweets con más retweets, su usuario y la cantidad de retweets.</p>
+    <pre class="codigo" data-clave="E07" data-resaltar="5-6"></pre>
+    <div class="resultado paso chico" data-clave="E07" data-max="6" data-cols="user.screen_name,retweet_count"></div>
+  </div>
+  <aside class="notas"><ul><li><code>find</code> devuelve un cursor; <code>sort/limit/skip</code> lo configuran antes de traer datos.</li><li>Sin índice, ordenar 100k documentos es un sort en memoria (lo vemos ya).</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="1" data-titulo="Embeber vs referenciar">
+  <div class="contenido">
+    <h2>¿Dónde va el dueño? Embeber vs. referenciar</h2>
+    <p class="sub" style="font-size:20px">Un dato relacionado: ¿va <b>adentro</b> del documento o en <b>otra colección</b>?</p>
+    <div class="fila">
+      <div class="tarjeta verde paso" data-paso="1" style="display:flex;flex-direction:column;gap:8px">
+        <h3>Embeber: el dueño adentro del auto</h3>
+<div class="doc" style="font-size:15px">// autos
+{ <span class="k">_id</span>: <span class="s">"BG 135 ZT"</span>, <span class="k">marca</span>: <span class="s">"Toyota"</span>,
+  <span class="k">dueño</span>: { <span class="k">dni</span>: <span class="n">21222324</span>, <span class="k">nombre</span>: <span class="s">"Graciela"</span> } }</div>
+<pre class="codigo mini">db.autos.find({ _id: "BG 135 ZT" })</pre>
+        <p class="chico paso" data-paso="3"><b class="verde">+</b> Un acceso y ya viene el dueño.<br><b class="rojo">−</b> 3 autos = <b>3 copias</b> de Graciela.</p>
+      </div>
+      <div class="tarjeta azul paso" data-paso="2" style="display:flex;flex-direction:column;gap:8px">
+        <h3>Referenciar: como en SQL</h3>
+<div class="doc" style="font-size:15px">// autos                         // conductores
+{ <span class="k">_id</span>: <span class="s">"BG 135 ZT"</span>,           { <span class="k">_id</span>: <span class="n">21222324</span>,
+  <span class="k">dueño</span>: <span class="n">21222324</span> }               <span class="k">nombre</span>: <span class="s">"Graciela"</span> }</div>
+<pre class="codigo mini">db.autos.aggregate([{ $lookup: {
+  from: "conductores", localField: "dueño",
+  foreignField: "_id", as: "dueño" } }])</pre>
+        <p class="chico paso" data-paso="3"><b class="verde">+</b> Graciela existe <b>una vez</b>.<br><b class="rojo">−</b> Leer juntos = <code>$lookup</code> (JOIN, más caro).</p>
+      </div>
+    </div>
+    <p class="chico paso" data-paso="4"><b>En los tweets:</b> <code>user</code> y <code>retweeted_status</code> están embebidos: copias <i>de ese momento</i>.</p>
+    <p class="paso pregunta" data-paso="5" style="font-size:21px">Embebé lo que se lee junto y no crece sin límite. Referenciá lo compartido, lo que cambia seguido o crece sin techo.</p>
+  </div>
+  <aside class="notas"><ul><li>Es la pregunta de la diapo de conductores: "¿queremos guardar esto?". Si Graciela cambia el apellido, con embebido hay que actualizar sus 3 autos.</li><li>En los tweets, el <code>retweet_count</code> dentro de <code>retweeted_status</code> quedó congelado en el momento del retweet.</li><li>Embeber también da atomicidad gratis: un update a un documento es atómico. Límite: 16 MB por documento.</li><li>NoSQL Parte I, p. 35-36 (bases orientadas a documentos).</li><li>Volvemos a esta pregunta en Pizzagram: ¿comentarios embebidos en la publicación?</li></ul></aside>
+</section>
+
+<!-- ===================================================================== BLOQUE 2 -->
+<section class="slide" data-bloque="2" data-titulo="¿Cuánto costó E1?">
+  <div class="contenido">
+    <h2>¿Cuánto costó encontrar 61 tweets?</h2>
+<pre class="codigo">db.tweets.find({ user_id: "188068413" }).explain("executionStats")</pre>
+    <div class="fila">
+      <div class="resultado paso" data-clave="explain/antes" data-tipo="kv" data-titulo="sin índice" data-cols="plan:plan,docsExaminados:documentos examinados,devueltos:devueltos,ms:milisegundos"></div>
+      <div class="tarjeta rojo paso"><p class="grande"><b>COLLSCAN</b>: leyó los <b>100.000</b> documentos para devolver 61.</p><p class="chico" style="margin-top:8px">Es un <i>full table scan</i>. Con 100 millones de tweets, son 100 millones de lecturas por consulta.</p></div>
+    </div>
+  </div>
+  <aside class="notas"><ul><li>La base del taller no tiene ningún índice salvo <code>_id</code>.</li><li>Medido sobre el Mongo local (copia exacta). El usuario de Atlas es de solo lectura.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="2" data-titulo="Índices">
+  <div class="contenido">
+    <h2>Un índice: un árbol B ordenado por la clave</h2>
+    <div class="fila">
+      <svg viewBox="-40 0 600 300" style="max-height:300px">
+        <g font-size="15" text-anchor="middle">
+          <rect x="200" y="10" width="160" height="40" rx="8" fill="#fff" stroke="#00684a" stroke-width="2"/><text x="280" y="36">"25…" | "6…"</text>
+          <rect x="20" y="120" width="150" height="40" rx="8" fill="#fff" stroke="#d9ddd6" stroke-width="2"/><text x="95" y="146">"1…" … "24…"</text>
+          <rect x="205" y="120" width="150" height="40" rx="8" fill="#fff" stroke="#d9ddd6" stroke-width="2"/><text x="280" y="146">"25…" … "5…"</text>
+          <rect x="390" y="120" width="150" height="40" rx="8" fill="#fff" stroke="#d9ddd6" stroke-width="2"/><text x="465" y="146">"6…" … "9…"</text>
+          <line x1="250" y1="50" x2="95" y2="120" stroke="#d9ddd6" stroke-width="2"/><line x1="280" y1="50" x2="280" y2="120" stroke="#d9ddd6" stroke-width="2"/><line x1="310" y1="50" x2="465" y2="120" stroke="#d9ddd6" stroke-width="2"/>
+          <g class="paso" data-paso="2"><line x1="250" y1="50" x2="95" y2="120" stroke="#13aa52" stroke-width="5"/><rect x="20" y="120" width="150" height="40" rx="8" fill="#e2f2ea" stroke="#13aa52" stroke-width="3"/><text x="95" y="146">"1…" … "24…"</text>
+          <line x1="95" y1="160" x2="95" y2="220" stroke="#13aa52" stroke-width="5"/><rect x="-30" y="220" width="250" height="44" rx="8" fill="#13aa52"/><text x="95" y="248" fill="#fff" font-weight="700">"188068413" → 61 docs</text></g>
+        </g>
+      </svg>
+      <div style="display:flex;flex-direction:column;gap:10px">
+<pre class="codigo chico paso" data-paso="1">db.tweets.createIndex({ user_id: 1 })</pre>
+        <div class="resultado paso" data-paso="3" data-clave="explain/despues" data-tipo="kv" data-titulo="con índice" data-cols="plan:plan,keysExaminadas:claves examinadas,docsExaminados:documentos examinados,ms:milisegundos"></div>
+        <p class="chico paso" data-paso="4"><b class="rojo">El costo:</b> cada <code>insert/update/delete</code> también actualiza el índice, y ocupa memoria.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="notas"><ul><li>Es la misma idea que en relacional (B+ tree). Mongo además indexa campos anidados y arrays (índice multikey).</li><li>De 100.000 documentos examinados a 61.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="2" data-titulo="Replicación">
+  <div class="contenido">
+    <h2>Replicación: un <i>replica set</i></h2>
+    <span class="paso" data-paso="1"></span><span class="paso" data-paso="2"></span><span class="paso" data-paso="3"></span>
+    <div class="fila" style="align-items:center;margin-top:10px">
+      <div class="nodo router" style="flex:0 0 170px">Aplicación<small>escribe y lee</small></div>
+      <div class="flecha">→</div>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="nodo primario latiendo" data-en-paso="2" data-agregar="caido" data-quitar="latiendo">Nodo A · primario<small>recibe todas las escrituras</small></div>
+        <div class="nodo" data-en-paso="3" data-agregar="primario latiendo">Nodo B · secundario<small>copia el <i>oplog</i> del primario</small></div>
+        <div class="nodo">Nodo C · secundario<small>copia el <i>oplog</i> del primario</small></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <p class="chico paso" data-paso="1">Las escrituras van al primario; los secundarios las <b>replican de forma asíncrona</b>.</p>
+        <p class="chico paso" data-paso="2"><b class="rojo">Se cae el primario.</b></p>
+        <p class="chico paso" data-paso="3">Los que quedan <b>votan</b> y uno pasa a primario (≈ segundos). Por eso conviene un número impar de miembros con voto (o un árbitro).</p>
+      </div>
+    </div>
+    <div class="fila paso" data-paso="4" style="margin-top:auto">
+      <div class="tarjeta"><b>Write concern</b> <code>w: "majority"</code>: confirmar recién cuando la mayoría tiene la escritura.</div>
+      <div class="tarjeta"><b>Read preference</b> <code>secondary</code>: leer de un secundario… ¿con datos viejos?</div>
+    </div>
+  </div>
+  <aside class="notas"><ul><li>NoSQL Parte I, p. 14 (replicación).</li><li>Atlas te da por defecto un replica set de 3 nodos: el cluster del taller es uno.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="2" data-titulo="Modelos de consistencia">
+  <div class="contenido">
+    <h2>¿Qué ve quien lee de un secundario?</h2>
+    <svg viewBox="0 0 1120 230" style="max-height:230px">
+      <g font-size="18">
+        <text x="0" y="40" font-weight="700">Primario</text><line x1="130" y1="35" x2="1100" y2="35" stroke="#17201c" stroke-width="2"/>
+        <circle cx="300" cy="35" r="9" fill="#00684a"/><text x="250" y="20" fill="#00684a">w(x = 5)</text>
+        <text x="0" y="120" font-weight="700">Secundario</text><line x1="130" y1="115" x2="1100" y2="115" stroke="#17201c" stroke-width="2"/>
+        <g class="paso" data-paso="2"><line x1="300" y1="44" x2="700" y2="106" stroke="#13aa52" stroke-width="3" stroke-dasharray="8 6"/><circle cx="700" cy="115" r="9" fill="#13aa52"/><text x="660" y="145" fill="#13aa52">replica x = 5</text></g>
+        <text x="0" y="200" font-weight="700">Cliente</text><line x1="130" y1="195" x2="1100" y2="195" stroke="#17201c" stroke-width="2"/>
+        <g class="paso" data-paso="1"><circle cx="480" cy="195" r="9" fill="#b42318"/><text x="420" y="225" fill="#b42318">lee x → valor viejo</text><line x1="480" y1="186" x2="480" y2="124" stroke="#b42318" stroke-width="2"/></g>
+        <g class="paso" data-paso="3"><circle cx="900" cy="195" r="9" fill="#00684a"/><text x="850" y="225" fill="#00684a">lee x → 5</text><line x1="900" y1="186" x2="900" y2="124" stroke="#00684a" stroke-width="2"/></g>
+      </g>
+    </svg>
+    <div class="fila paso" data-paso="4">
+      <div class="tarjeta"><h3>Secuencial / fuerte</h3><p class="chico">Todos ven las escrituras en el mismo orden. Leer del primario con <code>majority</code>.</p></div>
+      <div class="tarjeta"><h3>Causal</h3><p class="chico">Si A causó B, nadie ve B sin A. Mongo: <i>causally consistent sessions</i>.</p></div>
+      <div class="tarjeta"><h3>Eventual</h3><p class="chico">Si dejan de escribir, en algún momento todos coinciden. Como Dynamo.</p></div>
+    </div>
+  </div>
+  <aside class="notas"><ul><li>NoSQL Parte I, p. 22-31.</li><li>La lectura en rojo es válida bajo consistencia eventual: la réplica todavía no recibió la escritura.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="2" data-titulo="Sharding">
+  <div class="contenido">
+    <h2>Sharding: fragmentación horizontal</h2>
+    <p class="sub">Cuando los datos (o las escrituras) no entran en una máquina: se reparten los <b>documentos</b> entre varios <i>shards</i>.</p>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:14px;margin-top:6px">
+      <div class="nodo router" style="width:320px">Aplicación</div>
+      <div class="nodo router paso" data-paso="1" style="width:420px">mongos · router<small>sabe qué rango de la <b>shard key</b> vive en cada shard (config servers)</small></div>
+      <div class="fila paso" data-paso="2" style="width:100%">
+        <div class="nodo">Shard 1<small>replica set</small></div><div class="nodo">Shard 2<small>replica set</small></div><div class="nodo">Shard 3<small>replica set</small></div><div class="nodo">Shard 4<small>replica set</small></div>
+      </div>
+    </div>
+    <p class="paso pregunta" data-paso="3" style="margin-top:auto">La decisión más importante: <u>¿por qué campo partimos?</u> → la <b>shard key</b>.</p>
+  </div>
+  <aside class="notas"><ul><li>NoSQL Parte I, p. 13 (fragmentación horizontal).</li><li>Cada shard es a su vez un replica set: sharding escala, replicación da disponibilidad. Se combinan.</li><li>Los números que siguen son reales: simulamos 4 shards sobre los 100k tweets.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="2" data-titulo="Shard key por fecha">
+  <div class="contenido">
+    <h2>Shard key por rango de <code>created_at</code></h2>
+    <div class="fila">
+      <div class="resultado" data-clave="shards/rango" data-tipo="barras" data-titulo="tweets guardados por shard (rangos de 6 h)" data-etiquetas="00-06 h,06-12 h,12-18 h,18-24 h"></div>
+      <div class="resultado paso" data-clave="shards/por_hora" data-tipo="barras" data-titulo="tweets por hora (UTC) — así LLEGAN" data-etiquetas="0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23" data-calientes="24"></div>
+    </div>
+    <div class="tarjeta rojo paso"><p class="chico"><b>Hotspot:</b> la fecha siempre crece. A las 23 h, <b>todas</b> las escrituras nuevas van al shard del último rango; los otros tres están ociosos. Y con rangos fijos, lo guardado depende de la hora del día (el de 06 a 12 h tiene menos de un tercio que los otros; Mongo lo compensa partiendo y moviendo chunks, pero las inserciones nuevas siguen yendo todas al último).</p></div>
+    <p class="chico paso"><b>A favor:</b> "los tweets entre las 21 y las 22" va a <b>un solo</b> shard (consulta por rango dirigida).</p>
+  </div>
+  <aside class="notas"><ul><li>Horas en UTC: el pozo de 6 a 9 UTC son las 3 a 6 de la mañana en Argentina.</li><li>Clave monotónica = escrituras concentradas. Mismo problema con un <code>ObjectId</code> o un autoincremental.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="2" data-titulo="Shard key hasheada">
+  <div class="contenido">
+    <h2>Shard key <i>hashed</i> por <code>user_id</code></h2>
+    <div class="fila">
+      <div class="resultado" data-clave="shards/hash" data-tipo="barras" data-titulo="simulación: hash(user_id) mod 4" data-etiquetas="Shard 1,Shard 2,Shard 3,Shard 4"></div>
+      <div class="resultado paso" data-paso="2" data-clave="shards/lang" data-tipo="barras" data-titulo="y si partimos por lang…" data-calientes="1"></div>
+    </div>
+    <div class="fila">
+      <div class="tarjeta verde paso" data-paso="1"><p class="chico">54.877 usuarios distintos → reparto parejo de datos <b>y</b> de escrituras. "Los tweets de un usuario" sigue yendo a un shard.</p><p class="chico" style="margin-top:6px"><b class="rojo">Pero:</b> un rango de fechas ahora va a <b>todos</b>.</p></div>
+      <div class="tarjeta rojo paso" data-paso="2"><p class="chico"><b>Baja cardinalidad:</b> todo <code>"es"</code> (86%) es un único valor: no se puede partir. Un shard se lleva casi todo.</p></div>
+    </div>
+  </div>
+  <aside class="notas"><ul><li>Simulamos con <code>hash mod 4</code> para ver el reparto. Ojo: con <code>mod N</code>, agregar un shard reubica casi todas las claves. Por eso Dynamo usa <b>hashing consistente</b> (un anillo; NoSQL Parte I, p. 20-21) y Mongo parte el espacio del hash en <b>rangos (chunks)</b> que el balanceador mueve.</li><li>Una buena shard key: alta cardinalidad, distribución pareja, y que aparezca en las consultas frecuentes.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="2" data-titulo="Dirigida vs scatter-gather">
+  <div class="contenido">
+    <h2>Consulta dirigida vs. <i>scatter-gather</i></h2>
+    <p class="sub">Con shard key = <code>user_id</code> (hashed):</p>
+    <div class="fila">
+      <div class="tarjeta">
+        <h3>E1 · <code>find({ user_id: "188068413" })</code></h3>
+        <div class="nodo router" style="margin:12px auto;width:200px">mongos</div>
+        <div class="fila" style="gap:10px"><div class="nodo apagado">S1</div><div class="nodo" data-en-paso="1" data-agregar="primario">S2</div><div class="nodo apagado">S3</div><div class="nodo apagado">S4</div></div>
+        <p class="chico paso" data-paso="1" style="margin-top:10px">El router calcula el hash y va <b>a un solo shard</b>.</p>
+      </div>
+      <div class="tarjeta">
+        <h3>E9 · hashtags más usados</h3>
+        <div class="nodo router" style="margin:12px auto;width:200px">mongos</div>
+        <div class="fila" style="gap:10px"><div class="nodo" data-en-paso="2" data-agregar="primario">S1</div><div class="nodo" data-en-paso="2" data-agregar="primario">S2</div><div class="nodo" data-en-paso="2" data-agregar="primario">S3</div><div class="nodo" data-en-paso="2" data-agregar="primario">S4</div></div>
+        <p class="chico paso" data-paso="2" style="margin-top:10px">No filtra por la shard key: pregunta <b>a todos</b> y junta (lo vemos con el pipeline).</p>
+      </div>
+    </div>
+    <span class="paso" data-paso="1"></span><span class="paso" data-paso="2"></span>
+  </div>
+  <aside class="notas"><ul><li>Scatter-gather no está mal, pero la latencia es la del shard más lento y la carga se multiplica.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="2" data-titulo="Teorema CAP">
+  <div class="contenido">
+    <h2>Teorema CAP</h2>
+    <div class="fila" style="align-items:center">
+      <svg viewBox="0 0 460 400" style="max-height:400px">
+        <polygon points="230,30 30,370 430,370" fill="#fff" stroke="#d9ddd6" stroke-width="3"/>
+        <g class="paso" data-paso="2"><line x1="230" y1="30" x2="430" y2="370" stroke="#00684a" stroke-width="8"/><text x="360" y="190" font-size="17" fill="#00684a" font-weight="700">CP</text></g>
+        <g class="paso" data-paso="3"><line x1="30" y1="370" x2="430" y2="370" stroke="#b45309" stroke-width="8"/><text x="200" y="395" font-size="17" fill="#b45309" font-weight="700">AP</text></g>
+        <circle cx="230" cy="30" r="26" fill="#00684a"/><text x="230" y="38" text-anchor="middle" fill="#fff" font-size="24" font-weight="700">C</text>
+        <circle cx="30" cy="370" r="26" fill="#1d4ed8"/><text x="30" y="378" text-anchor="middle" fill="#fff" font-size="24" font-weight="700">A</text>
+        <circle cx="430" cy="370" r="26" fill="#b45309"/><text x="430" y="378" text-anchor="middle" fill="#fff" font-size="24" font-weight="700">P</text>
+      </svg>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <p class="chico"><b>C</b>onsistencia: todos ven el mismo dato. <b>A</b>vailability: siempre hay respuesta. <b>P</b>artition tolerance: sigue andando si se corta la red.</p>
+        <p class="chico paso" data-paso="1">En un sistema distribuido las particiones <b>van a pasar</b>: la elección real es entre C y A <i>durante</i> la partición.</p>
+        <div class="tarjeta verde paso" data-paso="2"><p class="chico"><b>MongoDB (por defecto): CP.</b> Sin mayoría no hay primario → no acepta escrituras hasta elegir uno.</p></div>
+        <div class="tarjeta ambar paso" data-paso="3"><p class="chico"><b>Dynamo, Cassandra: AP.</b> Siempre responden; se reconcilia después (consistencia eventual).</p></div>
+        <p class="chico paso" data-paso="4">Con <code>readPreference: secondary</code> las <b>lecturas</b> siguen respondiendo sin primario (quizás con datos viejos): se corre hacia A. Las escrituras, sin primario, no. <b>BASE vs ACID</b>: es un dial, no un binario.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="notas"><ul><li>NoSQL Parte I, p. 73-78.</li><li>BASE: Basically Available, Soft state, Eventually consistent.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="2" data-titulo="Recreo">
+  <div class="contenido centrado" style="display:flex">
+    <div class="enorme">☕ 15'</div>
+    <p class="sub">A la vuelta: el pipeline de agregación, y un ejercicio de parcial.</p>
+  </div>
+</section>
+
+<!-- ===================================================================== BLOQUE 3 -->
+<section class="slide" data-bloque="3" data-titulo="El pipeline">
+  <div class="contenido">
+    <h2><code>find</code> filtra. <code>aggregate</code> <span class="verde">transforma</span>.</h2>
+    <p class="sub">Un pipeline es una tubería: cada etapa recibe documentos, hace <b>una</b> cosa y le pasa el resultado a la siguiente. Como <code>cat | grep | sort | head</code>.</p>
+    <div class="tuberia anim paso" style="margin-top:30px">
+      <div class="etapa">$match<small>filtra</small></div><div class="tubo"><i></i><i></i><i></i></div>
+      <div class="etapa">$group<small>agrupa</small></div><div class="tubo"><i></i><i></i><i></i></div>
+      <div class="etapa">$sort<small>ordena</small></div><div class="tubo"><i></i><i></i><i></i></div>
+      <div class="etapa">$limit<small>corta</small></div>
+    </div>
+<pre class="codigo paso" style="margin-top:26px">db.coleccion.aggregate([ { etapa1 }, { etapa2 }, …, { etapaN } ])</pre>
+    <p class="paso pregunta">La salida de una etapa <b>ya no son los documentos originales</b>: después de un <code>$group</code>, solo existe lo que el group generó.</p>
+  </div>
+  <aside class="notas"><ul><li>Esta frase es la que más errores evita en Pizzagram: después del primer group, el campo es <code>$_id.ip</code>, no <code>$comentarios.ip</code>.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="3" data-titulo="Equivalencias SQL">
+  <div class="contenido">
+    <h2>Lo que ya saben, con otros nombres</h2>
+    <div class="equivalencias" style="margin-top:12px">
+      <span class="izq paso">WHERE</span><span class="flecha paso">→</span><span class="der paso">$match</span>
+      <span class="izq paso">GROUP BY + COUNT/SUM/AVG</span><span class="flecha paso">→</span><span class="der paso">$group + $sum / $avg / $max / $push</span>
+      <span class="izq paso">HAVING</span><span class="flecha paso">→</span><span class="der paso">$match después del $group</span>
+      <span class="izq paso">SELECT a, b AS c</span><span class="flecha paso">→</span><span class="der paso">$project / $addFields</span>
+      <span class="izq paso">ORDER BY · LIMIT · OFFSET</span><span class="flecha paso">→</span><span class="der paso">$sort · $limit · $skip</span>
+      <span class="izq paso">(no hay)</span><span class="flecha paso">→</span><span class="der paso">$unwind</span>
+    </div>
+  </div>
+  <aside class="notas"><ul><li>Diferencia clave: en SQL el orden lógico lo fija el lenguaje (FROM, WHERE, GROUP BY, HAVING, SELECT, ORDER BY). En Mongo lo elegís vos, etapa por etapa, y podés repetir etapas.</li><li><code>$unwind</code> existe porque en SQL los arrays ya serían filas de otra tabla.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="3" data-titulo="E8 · El orden importa">
+  <div class="contenido">
+    <h2>E8 · El orden de las etapas importa</h2>
+    <p class="enunciado">Mostrar de los 10 tweets con más retweets, su usuario y la cantidad de retweets. Ordenar la salida de forma ascendente.</p>
+    <div class="fila">
+      <pre class="codigo chico" data-clave="E08" data-resaltar="2-3,5-11"></pre>
+      <div class="resultado paso chico col-angosta" data-clave="E08" data-max="10" data-cols="usuario,retweet_count"></div>
+    </div>
+    <p class="paso chico">Dos <code>$sort</code> en el mismo pipeline: imposible de escribir así en un solo <code>find</code>.</p>
+  </div>
+  <aside class="notas"><ul><li>Preguntar: ¿qué devuelve si sacamos el primer sort? ¿Y si cambiamos el orden de limit y el primer sort?</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="3" data-titulo="$unwind">
+  <div class="contenido">
+    <h2><code>$unwind</code>: un array se convierte en documentos</h2>
+    <div class="fila" style="align-items:center;margin-top:10px;gap:16px">
+<div class="doc" style="flex:0 0 auto;font-size:15px">{ <span class="k">_id</span>: <span class="s">"…144128"</span>,
+  <span class="k">entities</span>: { <span class="k">hashtags</span>: [
+    { <span class="k">text</span>: <span class="s">"Endomondo"</span> },
+    { <span class="k">text</span>: <span class="s">"endorphins"</span> },
+    { <span class="k">text</span>: <span class="s">"cycling"</span> } ] } }</div>
+      <div class="flecha paso" data-paso="1">→<br><code style="font-size:16px">$unwind</code></div>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:14px">
+<div class="doc paso" data-paso="1" data-anim="nuevo" style="font-size:14px">{ <span class="k">_id</span>: <span class="s">"…144128"</span>, <span class="k">entities</span>: { <span class="k">hashtags</span>: { <span class="k">text</span>: <span class="s">"Endomondo"</span> } } }</div>
+<div class="doc paso" data-paso="1" data-anim="nuevo" style="transition-delay:.15s;font-size:14px">{ <span class="k">_id</span>: <span class="s">"…144128"</span>, <span class="k">entities</span>: { <span class="k">hashtags</span>: { <span class="k">text</span>: <span class="s">"endorphins"</span> } } }</div>
+<div class="doc paso" data-paso="1" data-anim="nuevo" style="transition-delay:.3s;font-size:14px">{ <span class="k">_id</span>: <span class="s">"…144128"</span>, <span class="k">entities</span>: { <span class="k">hashtags</span>: { <span class="k">text</span>: <span class="s">"cycling"</span> } } }</div>
+      </div>
+    </div>
+    <ul class="chico" style="margin-top:14px">
+      <li class="paso" data-paso="2">Mismo <code>_id</code> repetido: cada copia lleva <b>un</b> elemento del array (ya no es array).</li>
+      <li class="paso" data-paso="3">Un tweet <b>sin</b> hashtags desaparece (salvo <code>preserveNullAndEmptyArrays</code>).</li>
+      <li class="paso" data-paso="4">Es "aplanar" a la forma relacional: una fila por (tweet, hashtag).</li>
+    </ul>
+  </div>
+  <aside class="notas"><ul><li>Ejemplo de la cátedra: el usuario Carlos con 3 pasatiempos.</li><li>Para Pizzagram: un documento por comentario.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="3" data-titulo="E9 · Hashtags más usados">
+  <div class="contenido">
+    <h2>E9 · <code>$unwind</code> + <code>$group</code> = contar elementos de arrays</h2>
+    <p class="enunciado">Encontrar los 10 hashtags más usados.</p>
+    <div class="fila">
+      <pre class="codigo chico" data-clave="E09" data-resaltar="2,5-6"></pre>
+      <div class="resultado paso chico col-angosta" data-clave="E09" data-max="10" data-cols="_id:hashtag,cantidad"></div>
+    </div>
+    <p class="paso chico"><code>$sum: 1</code> = sumar 1 por cada documento del grupo = <code>COUNT(*)</code>. El <code>_id</code> del <code>$group</code> es la clave de agrupación.</p>
+  </div>
+  <aside class="notas"><ul><li>Datos reales del 26/06/2019: aniversario de River, política argentina…</li><li><code>$sortByCount</code> hace group + sort en una etapa (bonus).</li></ul></aside>
+</section>
+
+<section class="slide opcional" data-requiere="errores/E10" data-bloque="3" data-titulo="El $ que falta">
+  <div class="contenido">
+    <h2>El <code>$</code> que falta <span class="etiqueta rojo">error frecuente</span></h2>
+    <p class="enunciado">E10 · Encontrar los 5 usuarios más mencionados.</p>
+    <div class="fila">
+      <pre class="codigo chico" data-clave="errores/E10" data-error="5"></pre>
+      <div class="resultado paso col-angosta" data-clave="errores/E10" data-compacto="1"></div>
+    </div>
+    <p class="paso grande"><code>"entities.user_mentions.screen_name"</code> es un <b>texto</b>, igual para todos → un solo grupo. <code>"$entities…"</code> es el <b>valor del campo</b>.</p>
+  </div>
+  <aside class="notas"><ul><li>Error real del taller (también tenía el $unwind sin $, que sí da error explícito).</li><li>Es exactamente el error de la solución de Pizzagram que vamos a ver.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="3" data-titulo="E10 · Más mencionados">
+  <div class="contenido">
+    <h2>E10 · <code>$unwind</code> de un array de objetos</h2>
+    <p class="enunciado">Encontrar los 5 usuarios más mencionados.</p>
+    <div class="fila">
+      <pre class="codigo chico" data-clave="E10" data-resaltar="2,5"></pre>
+      <div class="resultado paso col-angosta" data-clave="E10" data-cols="_id:usuario,menciones"></div>
+    </div>
+    <p class="paso chico">Después del <code>$unwind</code>, <code>entities.user_mentions</code> es <b>un objeto</b>, y la notación de punto entra en él.</p>
+  </div>
+</section>
+
+<section class="slide" data-bloque="3" data-titulo="E11 · _id calculado">
+  <div class="contenido">
+    <h2>E11 · El <code>_id</code> del group puede ser una expresión</h2>
+    <p class="enunciado">Hallar la cantidad de retweets promedio para los tweets que se hayan hecho desde Argentina y aquellos que no.</p>
+    <div class="fila">
+      <pre class="codigo chico" data-clave="E11" data-resaltar="4-10"></pre>
+      <div class="col-angosta" style="display:flex;flex-direction:column;gap:12px">
+      <div class="resultado paso chico" data-clave="E11" data-cols="_id:grupo,promedio_retweets:promedio RT,tweets"></div>
+      <p class="chico paso"><b>resto</b> = 103 tweets de otros países <b>+ 97.219 sin <code>place</code></b>: si el campo no existe, el <code>$eq</code> también da false.</p>
+      <div class="tarjeta ambar paso"><p class="chico">¿Menos de 1 contra más de 2.000? Los tweets con lugar son originales. El resto incluye <b>retweets</b>, que heredan el <code>retweet_count</code> del original viral.</p></div>
+      </div>
+    </div>
+  </div>
+  <aside class="notas"><ul><li><code>$cond</code> es un if/else: <code>[condición, si_true, si_false]</code>. Sin el <code>$cond</code>, el <code>$eq</code> solo daría dos grupos llamados true y false.</li><li>Si quisiéramos excluir los tweets sin lugar, iría un <code>$match: {place: {$ne: null}}</code> antes del group (el enunciado no lo pide).</li><li>Ojo: en expresiones, <code>$eq</code> recibe un array <code>[a, b]</code>; en filtros, <code>{campo: {$eq: v}}</code>.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="3" data-titulo="E11 · ¿Por qué?">
+  <div class="contenido">
+    <h2>¿Por qué menos de 1 contra más de 2.000?</h2>
+    <p class="sub" style="font-size:20px">Mismo promedio, pero separando tweets <b>originales</b> de <b>retweets</b> (los que tienen <code>retweeted_status</code>):</p>
+    <pre class="codigo mini" data-clave="E11b" data-lineas="4-9" data-resaltar="8"></pre>
+    <div class="fila">
+      <div class="resultado paso" data-paso="1" data-clave="E11b" data-titulo="E11b · promedio por grupo y tipo" data-cols="_id.grupo:grupo,_id.tipo:tipo,tweets,promedio_retweets:prom. RT"></div>
+      <div class="resultado paso chico" data-paso="2" data-clave="E11c" data-titulo="E11c · los retweets más 'retuiteados'" data-cols="user.screen_name:retuiteó,retweeted_status.user.screen_name:autor,retweet_count:RT,retweeted_status.retweet_count:RT original"></div>
+    </div>
+    <p class="paso" data-paso="3" style="font-size:20px">Los originales son <b>iguales</b> (0,9 y 1,2). El resto lo inflan los retweets, que <b>copian el contador del original</b>. <span class="rojo">Promediar un campo sin saber qué significa en cada documento da una conclusión falsa.</span></p>
+  </div>
+  <aside class="notas"><ul><li>Paso 1: Argentina no tiene retweets en el grupo porque los retweets no traen <code>place</code>.</li><li>Paso 2: en los 52.802 retweets de la base, <code>retweet_count</code> es igual a <code>retweeted_status.retweet_count</code>, sin excepción.</li><li>Es el costo de embeber del bloque 1: el retweet guarda una copia del original y de su contador.</li><li>El tweet de E2 (el único con más de 500k) es este mismo caso: belbeele retuiteando a BTS.</li><li>En vivo: <code>python3 python/execute_query.py E11b</code> y <code>E11c</code>.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="3" data-titulo="E12 · $push y $size">
+  <div class="contenido">
+    <h2>E12 · Armar arrays: <code>$push</code> y <code>$size</code></h2>
+    <p class="enunciado">Por cada usuario obtener una lista de ids de tweets y el largo de la misma.</p>
+    <div class="fila">
+      <pre class="codigo chico" data-clave="E12" data-resaltar="5,8"></pre>
+      <div class="resultado paso chico col-angosta" data-clave="E12" data-max="3" data-cols="_id:user_id,n_tweets,tweets"></div>
+    </div>
+    <p class="paso chico"><code>$push</code> es lo opuesto a <code>$unwind</code>: de muchos documentos, un array. (<code>$addToSet</code> = sin repetidos.)</p>
+  </div>
+  <aside class="notas"><ul><li>54.877 grupos, uno por usuario. El array se muestra recortado.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="3" data-titulo="E13 · Agrupar, cortar, seguir">
+  <div class="contenido">
+    <h2>E13 · Agrupar, cortar… y seguir operando</h2>
+    <p class="enunciado">Hallar la máxima cantidad de retweets totales que tuvieron los 10 usuarios con más tweets.</p>
+    <div class="fila">
+      <pre class="codigo mini" data-clave="E13" data-resaltar="6-7,10-13"></pre>
+      <div style="display:flex;flex-direction:column;gap:12px" class="col-angosta">
+        <div class="resultado paso" data-clave="E13" data-cols="usuario,tweets,retweets"></div>
+        <p class="chico paso"><b>Patrón clave:</b> un <code>$group</code>, un corte, y otra operación sobre <b>el resultado del group</b>. Lo vamos a volver a usar.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="notas"><ul><li>El enunciado es ambiguo: también se puede leer como "el máximo retweet_count de un tweet" (<code>$max</code>). Está comentado en el resuelto.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="3" data-titulo="E14 · _id compuesto">
+  <div class="contenido">
+    <h2>E14 · Agrupar por dos cosas: <code>_id</code> compuesto</h2>
+    <p class="enunciado">Hallar para cada intervalo de una hora cuántos tweets realizó cada usuario.</p>
+    <div class="fila">
+      <pre class="codigo chico" data-clave="E14" data-resaltar="4-7"></pre>
+      <div class="resultado paso chico col-angosta" data-clave="E14" data-max="6" data-cols="_id.usuario:usuario,_id.hora:hora,tweets"></div>
+    </div>
+    <p class="paso chico"><code>_id: {usuario, hora}</code> = <code>GROUP BY usuario, hora</code>. Para referirlo después: <code>"$_id.usuario"</code>. <b>Guárdenlo: lo vamos a necesitar.</b></p>
+  </div>
+  <aside class="notas"><ul><li><code>$hour</code> alcanza porque es un solo día. Con varios días: <code>$dateTrunc</code> (Mongo 5+), comentado en el resuelto.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="3" data-titulo="Aggregate distribuido">
+  <div class="contenido">
+    <h2>¿Y con sharding? El <code>$group</code> se reparte</h2>
+    <p class="sub">E9 sobre 3 shards: cada uno agrupa <b>lo suyo</b>, y el router combina.</p>
+    <div class="fila" style="margin-top:6px">
+      <div class="tarjeta paso" data-paso="1"><h3>Shard 1</h3><p class="mono chico">River: 120<br>Macri: 80<br>Vidal: 95</p></div>
+      <div class="tarjeta paso" data-paso="1"><h3>Shard 2</h3><p class="mono chico">River: 110<br>Vidal: 130<br>Macri: 90</p></div>
+      <div class="tarjeta paso" data-paso="1"><h3>Shard 3</h3><p class="mono chico">River: 114<br>Macri: 80<br>Vidal: 100</p></div>
+    </div>
+    <div class="flecha paso" data-paso="2" style="text-align:center">↓ mongos (o un shard) suma los parciales</div>
+    <div class="tarjeta verde paso" data-paso="2" style="align-self:center"><p class="mono">River: 344 · Vidal: 325 · Macri: 250 → <b>$sort</b> → <b>$limit 10</b></p></div>
+    <p class="paso chico" data-paso="3"><b>Esto es MapReduce</b> (NoSQL Parte I, p. 62-65): <i>map</i> = cada shard emite (hashtag, 1) y agrupa local; <i>reduce</i> = combinar sumas parciales. Funciona porque la suma es asociativa. ¿Un <code>$avg</code>? Se manda (suma, cantidad).</p>
+  </div>
+  <aside class="notas"><ul><li>Los números por shard son ilustrativos; los totales son los reales de E9.</li><li>Un <code>$match</code> al principio reduce lo que viaja por la red: por eso conviene filtrar lo antes posible.</li></ul></aside>
+</section>
+
+<!-- ===================================================================== BLOQUE 4 -->
+<section class="slide" data-bloque="4" data-titulo="Pizzagram: el enunciado">
+  <div class="contenido">
+    <h2>Pizzagram 🍕</h2>
+    <div class="fila">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <p class="chico">Sospechan que algunas pizzerías <b>compran comentarios</b>. Los bots eligen 10 publicaciones al azar de la pizzería y comentan con <i>FaináGPT</i>.</p>
+        <p class="chico paso">Los 10 comentarios pueden venir de <b>distintos usuarios</b>, pero siempre de la <b>misma IP</b>.</p>
+        <p class="chico paso"><b>Bot</b> = IP con <b>exactamente 10</b> comentarios para una <b>misma pizzería</b> (en una publicación o repartidos).</p>
+        <p class="chico paso"><b>Pedido:</b> la IP del bot que operó en <b>más pizzerías</b>:<br><code>{ "ip": "192.1.6.188", "cantidad_pizzerias": 8 }</code></p>
+      </div>
+<div class="doc" style="font-size:15px">{
+  <span class="k">"idPublicación"</span>: <span class="s">"FA8769B87691"</span>,
+  <span class="k">"pizzeria"</span>: <span class="s">"La cuarteta de Guerrín"</span>,
+  <span class="k">"fecha_hora"</span>: <span class="s">"2025-04-10 13:59:04"</span>,
+  <span class="k">"texto"</span>: <span class="s">"Probaste la Calabresa? …"</span>,
+  <span class="k">"comentarios"</span>: [
+    { <span class="k">"username"</span>: <span class="s">"pablitus"</span>,
+      <span class="k">"ip"</span>: <span class="s">"165.57.4.88"</span>,
+      <span class="k">"texto"</span>: <span class="s">"Espectacular la de roquefort"</span> },
+    { <span class="k">"username"</span>: <span class="s">"zoe_mc_zoe_zoe"</span>, … },
+    …
+  ]
+}</div>
+    </div>
+  </div>
+  <aside class="notas"><ul><li>La base mock (<code>pizzagram.publicaciones</code>) tiene 487 publicaciones de 30 pizzerías y 3.817 comentarios, con bots plantados y trampas: una IP con 11 comentarios, otra con 10 repartidos entre 4 pizzerías.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="4" data-titulo="¿Qué patrón es?">
+  <div class="contenido">
+    <h2>Antes de escribir: ¿qué patrones vimos?</h2>
+    <div class="fila">
+      <div class="tarjeta paso"><h3>Los comentarios están en un array</h3><p class="chico">→ <code>$unwind</code> (E9, E10)</p></div>
+      <div class="tarjeta paso"><h3>Contar por (pizzería, ip)</h3><p class="chico">→ <code>$group</code> con <code>_id</code> compuesto (E14)</p></div>
+      <div class="tarjeta paso"><h3>"Exactamente 10"</h3><p class="chico">→ <code>$match</code> después del group = HAVING</p></div>
+    </div>
+    <div class="fila">
+      <div class="tarjeta paso"><h3>"¿En cuántas pizzerías?"</h3><p class="chico">→ <b>otro</b> <code>$group</code>, ahora por ip, sobre el resultado del primero (E13)</p></div>
+      <div class="tarjeta paso"><h3>"La que más"</h3><p class="chico">→ <code>$sort</code> + <code>$limit 1</code></p></div>
+      <div class="tarjeta paso"><h3>"Con este formato"</h3><p class="chico">→ <code>$project</code></p></div>
+    </div>
+  </div>
+  <aside class="notas"><ul><li>Pedirle a la clase que diga cada etapa antes de mostrarla.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="4" data-titulo="Etapa 1 · $unwind">
+  <div class="contenido">
+    <h2>Etapa 1 · Un documento por comentario</h2>
+    <div class="fila">
+      <pre class="codigo chico" data-clave="P" data-lineas="1-2,25" data-resaltar="2"></pre>
+      <div class="resultado paso chico" data-clave="P/etapa1" data-max="5" data-cols="pizzeria,comentarios.ip:ip,comentarios.username:username"></div>
+    </div>
+    <p class="paso chico">487 publicaciones → <b>3.817</b> documentos. <code>comentarios</code> ahora es un objeto: <code>$comentarios.ip</code>.</p>
+  </div>
+</section>
+
+<section class="slide" data-bloque="4" data-titulo="Etapa 2 · group (pizzería, ip)">
+  <div class="contenido">
+    <h2>Etapa 2 · Contar por (pizzería, ip)</h2>
+    <div class="fila">
+      <pre class="codigo mini" data-clave="P" data-lineas="1-8,25" data-resaltar="3-8"></pre>
+      <div class="resultado paso chico col-angosta" data-clave="P/etapa2" data-max="5" data-cols="_id.pizzeria:pizzeria,_id.ip:ip,comentarios:n"></div>
+    </div>
+    <p class="paso chico">Los campos originales <b>desaparecen</b>: solo queda <code>_id</code> (con pizzeria e ip) y <code>comentarios</code>.</p>
+  </div>
+</section>
+
+<section class="slide" data-bloque="4" data-titulo="Etapa 3 · HAVING = 10">
+  <div class="contenido">
+    <h2>Etapa 3 · Exactamente 10 → bots</h2>
+    <div class="fila">
+      <pre class="codigo mini" data-clave="P" data-lineas="1-9,25" data-resaltar="9"></pre>
+      <div class="resultado paso chico col-angosta" data-clave="P/etapa3" data-max="6" data-cols="_id.pizzeria:pizzeria,_id.ip:ip,comentarios:n"></div>
+    </div>
+    <p class="paso chico">3.129 pares → <b>16</b>. La IP con 11 comentarios y la de 10 <b>repartidos entre pizzerías</b> quedaron afuera.</p>
+  </div>
+</section>
+
+<section class="slide" data-bloque="4" data-titulo="Etapa 4 · group por ip">
+  <div class="contenido">
+    <h2>Etapa 4 · ¿En cuántas pizzerías operó cada bot?</h2>
+    <div class="fila">
+      <pre class="codigo mini" data-clave="P" data-lineas="1-15,25" data-resaltar="10-15"></pre>
+      <div class="resultado paso chico col-angosta" data-clave="P/etapa4" data-cols="_id:ip,cantidad_pizzerias"></div>
+    </div>
+    <p class="paso chico">Ahora la ip está en <code>"$_id.ip"</code>: es lo que generó la etapa anterior.</p>
+  </div>
+</section>
+
+<section class="slide" data-bloque="4" data-titulo="Etapas 5-7 · resultado">
+  <div class="contenido">
+    <h2>Etapas 5 a 7 · La que más, con el formato pedido</h2>
+    <div class="fila">
+      <pre class="codigo chico" data-clave="P" data-lineas="1,16-25" data-resaltar="16-24"></pre>
+      <div style="display:flex;flex-direction:column;gap:12px" class="col-angosta">
+        <div class="resultado paso" data-clave="P" data-tipo="json"></div>
+        <p class="chico paso">Pruébenlo: <code>python3 python/execute_query.py P --etapas</code></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide opcional" data-requiere="errores/P" data-bloque="4" data-titulo="Encontrá el error">
+  <div class="contenido">
+    <h2>Encontrá el error <span class="etiqueta rojo">solución de una entrega</span></h2>
+    <div class="fila">
+      <pre class="codigo mini" data-clave="errores/P" data-lineas="1-15,25" data-error="5,12"></pre>
+      <div style="display:flex;flex-direction:column;gap:10px" class="col-angosta">
+        <p class="chico paso">El original tenía <code>{ $unwind: {"$comentarios"} }</code>: sintaxis inválida.</p>
+        <p class="chico paso"><code>"pizzeria"</code> e <code>"ip"</code> sin <code>$</code>: un <b>único grupo</b> con los 3.817 comentarios.</p>
+        <div class="resultado paso" data-clave="errores/P"></div>
+        <p class="chico paso">Y en la etapa 4, <code>"$_id.ip"</code>: después del group, <code>ip</code> ya no existe suelto.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="notas"><ul><li>Lo pueden correr: <code>python3 python/execute_query.py errores/P --etapas</code> muestra que la etapa 2 devuelve 1 solo documento.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="4" data-titulo="¿Y en SQL? ¿Y el modelo?">
+  <div class="contenido">
+    <h2>Cerrando: ¿y en SQL? ¿Y el modelo?</h2>
+    <div class="fila">
+<pre class="codigo mini" data-lang="sql">SELECT ip, COUNT(*) AS cantidad_pizzerias
+FROM (
+  SELECT p.pizzeria, c.ip
+  FROM comentarios c
+  JOIN publicaciones p ON p.id = c.id_publicacion
+  GROUP BY p.pizzeria, c.ip
+  HAVING COUNT(*) = 10
+) bots
+GROUP BY ip
+ORDER BY cantidad_pizzerias DESC
+LIMIT 1;</pre>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <p class="chico paso">Misma idea: <b>doble GROUP BY</b> con un HAVING en el medio. El <code>$unwind</code> es el JOIN que no hizo falta.</p>
+        <div class="tarjeta ambar paso"><p class="chico">Una publicación viral con <b>miles de comentarios</b>: el documento crece sin límite (16 MB), y cada comentario nuevo reescribe la publicación.</p></div>
+        <p class="chico paso">Alternativas: comentarios en <b>su propia colección</b> (con <code>pizzeria</code> copiada para no hacer <code>$lookup</code>) o el <i>bucket pattern</i> (de a 100 por documento).</p>
+      </div>
+    </div>
+  </div>
+  <aside class="notas"><ul><li>Vuelve la pregunta del bloque 1: se modela según cómo se consulta.</li></ul></aside>
+</section>
+
+<section class="slide" data-bloque="0" data-titulo="Lo que nos llevamos">
+  <div class="contenido">
+    <h2>Lo que nos llevamos</h2>
+    <div class="fila">
+      <div class="tarjeta paso"><h3>1 · Documentos</h3><p class="chico">Flexibles y cómodos desde el código. El esquema pasa a la aplicación: <b>un typo es un [ ]</b>.</p></div>
+      <div class="tarjeta paso"><h3>2 · Escala</h3><p class="chico">Índices para no leer todo. Réplicas para no caerse. Shards para crecer: <b>la shard key decide todo</b>. CAP: es un dial.</p></div>
+    </div>
+    <div class="fila">
+      <div class="tarjeta paso"><h3>3 · Pipeline</h3><p class="chico">Etapas que transforman. Después de un <code>$group</code> solo existe lo que el group generó. <b>El <code>$</code> importa.</b></p></div>
+      <div class="tarjeta paso"><h3>4 · Pizzagram</h3><p class="chico"><code>$unwind</code> → <code>$group</code> compuesto → <code>$match</code> → <code>$group</code> → <code>$sort</code>/<code>$limit</code>/<code>$project</code>.</p></div>
+    </div>
+<pre class="codigo chico paso" data-lang="py"># todo el material: resueltos, base local y esta diapo
+cd entorno && docker compose up -d mongo && docker compose run --rm seed
+python3 python/execute_query.py E9 --pymongo</pre>
+  </div>
+</section>
+
+<section class="slide" data-bloque="0" data-titulo="Preguntas">
+  <div class="contenido centrado" style="display:flex">
+    <div class="enorme verde" data-anim="aparece">¿Preguntas?</div>
+    <p class="sub">Sobre documentos, índices, réplicas, shards, el pipeline… o Pizzagram.</p>
+  </div>
+  <aside class="notas"><ul>
+    <li>Si nadie arranca, algunas para tirar:</li>
+    <li>¿Cómo modelarían los comentarios si una publicación puede tener 100.000?</li>
+    <li>¿Qué shard key elegirían para Pizzagram? ¿Por pizzería? ¿Qué pasa con una pizzería viral?</li>
+    <li>Si un bot comenta desde 2 IPs distintas, ¿la consulta lo detecta? ¿Cómo la cambiarían?</li>
+    <li>¿Qué devuelve la consulta si hay empate entre dos bots?</li>
+  </ul></aside>
+</section>
+
+<section class="slide" data-bloque="0" data-titulo="Gracias">
+  <div class="contenido centrado" style="display:flex">
+    <div class="enorme" data-anim="aparece">¡Gracias!</div>
+    <p class="sub">Todo el material queda en el repo de la cátedra: esta diapo, los resueltos comentados y la base local para practicar.</p>
+<pre class="codigo chico" data-lang="py" style="text-align:left;margin-top:10px">python3 python/execute_query.py         # consultas/libre.ts: escriban sus propias consultas</pre>
+  </div>
+</section>
+
+</main>
+
+<!-- RESULTADOS:INICIO -->
+<script>window.RESULTADOS = {"E01":{"total":61,"filas":[{"_id":"1143677433780080640","created_at":"2019-06-26T00:28:43Z","full_text":"Very mucho... \n\nBARBARA X EL MESERO\n\nBARBARA ES MARIANA https://t.co/ax9AMI6ncC","truncated":false,"display_text_range":[0,55],"entities":{"hashtags":[],"symbols":[],"user_mentions":[],"urls":[{"url":"https://t.co/ax9AMI6ncC","expanded_url":"https://twitter.com/soulregui27/status/1143676197261459459","display_url":"twitter.com/soulregui27/st…","indices":[56,79]}]},"source":"<a href=\"http://twitter.com/download/android\" rel=\"nofollow\">Twitter for Android<\/a>","in_reply_to_status_id":null,"in_reply_to_status_id_str":null,"in_reply_to_user_id":null,"in_reply_to_user_id_str":null,"in_reply_to_screen_name":null,"user":{"id_str":"188068413","name":"👽💚","screen_name":"XpectRo9","location":"Salta, Argentina","description":"Un dia madurare...se ve q hoy no es...","url":null,"protected":false,"followers_count":744,"friends_count":506,"listed_count":7,"created_at":"Tue Sep 07 21:16:19 +0000 2010","favourites_count":35916,"time_zone":null,"verified":false,"statuses_count":51765,"lang":null,"default_profile":false},"geo":null,"coordinates":null,"place":null,"contributors":null,"is_quote_status":true,"quoted_status_id":1143676197261459459,"quoted_status_id_str":"1143676197261459459","quoted_status_permalink":{"url":"https://t.co/ax9AMI6ncC","expanded":"https://twitter.com/soulregui27/status/1143676197261459459","display":"twitter.com/soulregui27/st…"},"quoted_status":{"created_at":"Wed Jun 26 00:23:48 +0000 2019","id":1143676197261459459,"id_str":"1143676197261459459","full_text":"Ay que orgullosa está el fandom de Bárbara por fin tendrá su protagonico en cine, ahhhh.\n\nBARBARA X EL MESERO \n\nBARBARA ES MARIANA https://t.co/KOSaDCsABj","truncated":false,"display_text_range":[0,130],"entities":{"hashtags":[],"symbols":[],"user_mentions":[],"urls":[],"media":[{"id":1143676101794906112,"id_str":"1143676101794906112","indices":[131,154],"media_url":"http://pbs.twimg.com/media/D98nWumWwAAg5TX.jpg","media_url_https":"https://pbs.twimg.com/media/D98nWumWwAAg5TX.jpg","url":"https://t.co/KOSaDCsABj","display_url":"pic.twitter.com/KOSaDCsABj","expanded_url":"https://twitter.com/soulregui27/status/1143676197261459459/photo/1","type":"photo","sizes":{"thumb":{"w":150,"h":150,"resize":"crop"},"medium":{"w":1200,"h":675,"resize":"fit"},"large":{"w":1200,"h":675,"resize":"fit"},"small":{"w":680,"h":383,"resize":"fit"}}}]},"source":"<a href=\"http://twitter.com\" rel=\"nofollow\">Twitter Web Client<\/a>","in_reply_to_status_id":null,"in_reply_to_status_id_str":null,"in_reply_to_user_id":null,"in_reply_to_user_id_str":null,"in_reply_to_screen_name":null,"user":{"id_str":"271697108","name":"Jackie - NOS VAMOS A CASAR🥑🏳️‍🌈","screen_name":"soulregui27","location":"México. Member #6 Poison Squad","description":"#LOT  🇲🇽  Avalance  Zarlie✨ Sanvers Clexa #IMISSTHEM  Juliantina🍑🍰🏳️‍🌈  Nota: Manejo el mame.🥑22.","url":null,"entities":{"description":{"urls":[]}},"protected":false,"followers_count":4856,"friends_count":1801,"listed_count":28,"created_at":"Fri Mar 25 00:58:53 +0000 2011","favourites_count":71444,"time_zone":null,"verified":false,"statuses_count":89542,"lang":null,"profile_background_color":"ACDED6","profile_image_url":"http://pbs.twimg.com/profile_images/1138201972421668870/vkctXs81_normal.png","default_profile":false,"default_profile_image":false},"geo":null,"coordinates":null,"place":null,"contributors":null,"is_quote_status":false,"retweet_count":175,"favorite_count":15,"favorited":false,"retweeted":false,"possibly_sensitive":false,"lang":"es"},"retweet_count":0,"favorite_count":0,"possibly_sensitive":false,"lang":"es","text":"Very mucho... \n\nBARBARA X EL MESERO\n\nBARBARA ES MARIANA https://t.co/ax9AMI6ncC","user_id":"188068413","in_user_hashtag_collection":true,"hashtag_origin_checked":true,"cooccurrence_checked":true},{"_id":"1143678722232520712","created_at":"2019-06-26T00:33:50Z","full_text":"RT @GrilloJoselyn: Listos para reventar eso otra vez...\n\nBARBARA X EL MESERO\n\nBARBARA ES MARIANA\n\n#BarbaraLopezTrendy \n#MacaBeso \n#Santiago…","truncated":false,"display_text_range":[0,140],"entities":{"hashtags":[{"text":"BarbaraLopezTrendy","indices":[98,117]},{"text":"MacaBeso","indices":[119,128]}],"symbols":[],"user_mentions":[{"screen_name":"GrilloJoselyn","name":"JossG Transmigrada 🇵🇪 🍰","id":1129117363583029248,"id_str":"1129117363583029248","indices":[3,17]}],"urls":[]},"source":"<a href=\"http://twitter.com/download/android\" rel=\"nofollow\">Twitter for Android<\/a>","in_reply_to_status_id":null,"in_reply_to_status_id_str":null,"in_reply_to_user_id":null,"in_reply_to_user_id_str":null,"in_reply_to_screen_name":null,"user":{"id_str":"188068413","name":"👽💚","screen_name":"XpectRo9","location":"Salta, Argentina","description":"Un dia madurare...se ve q hoy no es...","url":null,"protected":false,"followers_count":744,"friends_count":506,"listed_count":7,"created_at":"Tue Sep 07 21:16:19 +0000 2010","favourites_count":35916,"time_zone":null,"verified":false,"statuses_count":51765,"lang":null,"default_profile":false},"geo":null,"coordinates":null,"place":null,"contributors":null,"retweeted_status":{"created_at":"Wed Jun 26 00:18:49 +0000 2019","id":1143674943789502464,"id_str":"1143674943789502464","full_text":"Listos para reventar eso otra vez...\n\nBARBARA X EL MESERO\n\nBARBARA ES MARIANA\n\n#BarbaraLopezTrendy \n#MacaBeso \n#SantiagoAchagaTrendy \n#KCAMexico","truncated":false,"display_text_range":[0,144],"entities":{"hashtags":[{"text":"BarbaraLopezTrendy","indices":[79,98]},{"text":"MacaBeso","indices":[100,109]},{"text":"SantiagoAchagaTrendy","indices":[111,132]},{"text":"KCAMexico","indices":[134,144]}],"symbols":[],"user_mentions":[],"urls":[]},"source":"<a href=\"http://twitter.com/download/android\" rel=\"nofollow\">Twitter for Android<\/a>","in_reply_to_status_id":null,"in_reply_to_status_id_str":null,"in_reply_to_user_id":null,"in_reply_to_user_id_str":null,"in_reply_to_screen_name":null,"user":{"id_str":"1129117363583029248","name":"JossG Transmigrada 🇵🇪 🍰","screen_name":"GrilloJoselyn","location":"","description":"Soporte para las Niñas - No soy Bot ... Somos más que una cuenta","url":null,"entities":{"description":{"urls":[]}},"protected":false,"followers_count":175,"friends_count":216,"listed_count":0,"created_at":"Thu May 16 20:12:12 +0000 2019","favourites_count":1898,"time_zone":null,"verified":false,"statuses_count":16236,"lang":null,"profile_background_color":"F5F8FA","profile_image_url":"http://pbs.twimg.com/profile_images/1147293589766103040/zGtROWZA_normal.jpg","default_profile":true,"default_profile_image":false},"geo":null,"coordinates":null,"place":null,"contributors":null,"is_quote_status":false,"retweet_count":4,"favorite_count":0,"favorited":false,"retweeted":false,"lang":"es"},"is_quote_status":false,"retweet_count":4,"favorite_count":0,"lang":"es","text":"RT @GrilloJoselyn: Listos para reventar eso otra vez...\n\nBARBARA X EL MESERO\n\nBARBARA ES MARIANA\n\n#BarbaraLopezTrendy \n#MacaBeso \n#Santiago…","user_id":"188068413","in_user_hashtag_collection":true,"hashtag_origin_checked":true,"cooccurrence_checked":true},{"_id":"1143679192556548097","created_at":"2019-06-26T00:35:42Z","full_text":"RT @transmigradaa: Faltaron más fotos en buena calidad con ese outfit y ese hairstyle t.t\n\nBARBARA X EL MESERO \n\nBARBARA ES MARIANA https:/…","truncated":false,"display_text_range":[0,140],"entities":{"hashtags":[],"symbols":[],"user_mentions":[{"screen_name":"transmigradaa","name":"v 0 l d e n t i n a","id":1121274395236950016,"id_str":"1121274395236950016","indices":[3,17]}],"urls":[]},"source":"<a href=\"http://twitter.com/download/android\" rel=\"nofollow\">Twitter for Android<\/a>","in_reply_to_status_id":null,"in_reply_to_status_id_str":null,"in_reply_to_user_id":null,"in_reply_to_user_id_str":null,"in_reply_to_screen_name":null,"user":{"id_str":"188068413","name":"👽💚","screen_name":"XpectRo9","location":"Salta, Argentina","description":"Un dia madurare...se ve q hoy no es...","url":null,"protected":false,"followers_count":744,"friends_count":506,"listed_count":7,"created_at":"Tue Sep 07 21:16:19 +0000 2010","favourites_count":35916,"time_zone":null,"verified":false,"statuses_count":51765,"lang":null,"default_profile":false},"geo":null,"coordinates":null,"place":null,"contributors":null,"retweeted_status":{"created_at":"Wed Jun 26 00:18:14 +0000 2019","id":1143674794828795905,"id_str":"1143674794828795905","full_text":"Faltaron más fotos en buena calidad con ese outfit y ese hairstyle t.t\n\nBARBARA X EL MESERO \n\nBARBARA ES MARIANA https://t.co/yTCLGIphd8","truncated":false,"display_text_range":[0,112],"entities":{"hashtags":[],"symbols":[],"user_mentions":[],"urls":[],"media":[{"id":1143674785991462917,"id_str":"1143674785991462917","indices":[113,136],"media_url":"http://pbs.twimg.com/media/D98mKI2XkAUeK7X.jpg","media_url_https":"https://pbs.twimg.com/media/D98mKI2XkAUeK7X.jpg","url":"https://t.co/yTCLGIphd8","display_url":"pic.twitter.com/yTCLGIphd8","expanded_url":"https://twitter.com/transmigradaa/status/1143674794828795905/photo/1","type":"photo","sizes":{"thumb":{"w":150,"h":150,"resize":"crop"},"large":{"w":475,"h":994,"resize":"fit"},"small":{"w":325,"h":680,"resize":"fit"},"medium":{"w":475,"h":994,"resize":"fit"}}}]},"source":"<a href=\"http://twitter.com/download/android\" rel=\"nofollow\">Twitter for Android<\/a>","in_reply_to_status_id":null,"in_reply_to_status_id_str":null,"in_reply_to_user_id":null,"in_reply_to_user_id_str":null,"in_reply_to_screen_name":null,"user":{"id_str":"1121274395236950016","name":"v 0 l d e n t i n a","screen_name":"transmigradaa","location":"transmigrando por ahí ","description":"Barba y Arena tus patronas 🍑+🍰=🥑\n\n@v0ldentina stamorida","url":"https://t.co/Z1nKwsHPUm","entities":{"url":{"urls":[{"url":"https://t.co/Z1nKwsHPUm","expanded_url":"https://bit.ly/2JKXvAa","display_url":"bit.ly/2JKXvAa","indices":[0,23]}]},"description":{"urls":[]}},"protected":false,"followers_count":887,"friends_count":910,"listed_count":2,"created_at":"Thu Apr 25 04:47:02 +0000 2019","favourites_count":3298,"time_zone":null,"verified":false,"statuses_count":2386,"lang":null,"profile_background_color":"F5F8FA","profile_image_url":"http://pbs.twimg.com/profile_images/1135186841970208770/6w72LVax_normal.png","default_profile":true,"default_profile_image":false},"geo":null,"coordinates":null,"place":null,"contributors":null,"is_quote_status":false,"retweet_count":41,"favorite_count":3,"favorited":false,"retweeted":false,"possibly_sensitive":false,"lang":"es"},"is_quote_status":false,"retweet_count":41,"favorite_count":0,"lang":"es","text":"RT @transmigradaa: Faltaron más fotos en buena calidad con ese outfit y ese hairstyle t.t\n\nBARBARA X EL MESERO \n\nBARBARA ES MARIANA https:/…","user_id":"188068413","in_user_hashtag_collection":true,"hashtag_origin_checked":true,"cooccurrence_checked":true},{"_id":"1143679316674453506","created_at":"2019-06-26T00:36:12Z","full_text":"RT @juliantinaftbm: Cuando barbara dice que quiere platicar con nosotras // Cuando se va y nos deja como sus pendejas  sin responder ningun…","truncated":false,"display_text_range":[0,140],"entities":{"hashtags":[],"symbols":[],"user_mentions":[{"screen_name":"juliantinaftbm","name":"Món. 🌙","id":1129019536932515840,"id_str":"1129019536932515840","indices":[3,18]}],"urls":[]},"source":"<a href=\"http://twitter.com/download/android\" rel=\"nofollow\">Twitter for Android<\/a>","in_reply_to_status_id":null,"in_reply_to_status_id_str":null,"in_reply_to_user_id":null,"in_reply_to_user_id_str":null,"in_reply_to_screen_name":null,"user":{"id_str":"188068413","name":"👽💚","screen_name":"XpectRo9","location":"Salta, Argentina","description":"Un dia madurare...se ve q hoy no es...","url":null,"protected":false,"followers_count":744,"friends_count":506,"listed_count":7,"created_at":"Tue Sep 07 21:16:19 +0000 2010","favourites_count":35916,"time_zone":null,"verified":false,"statuses_count":51765,"lang":null,"default_profile":false},"geo":null,"coordinates":null,"place":null,"contributors":null,"retweeted_status":{"created_at":"Wed Jun 26 00:17:07 +0000 2019","id":1143674514087305222,"id_str":"1143674514087305222","full_text":"Cuando barbara dice que quiere platicar con nosotras // Cuando se va y nos deja como sus pendejas  sin responder ninguna jajs\n\nBARBARA X EL MESERO\n\nBARBARA ES MARIANA https://t.co/rsZvQPWJAN","truncated":false,"display_text_range":[0,166],"entities":{"hashtags":[],"symbols":[],"user_mentions":[],"urls":[],"media":[{"id":1143674509553217537,"id_str":"1143674509553217537","indices":[167,190],"media_url":"http://pbs.twimg.com/media/D98l6DCWsAEVuzP.jpg","media_url_https":"https://pbs.twimg.com/media/D98l6DCWsAEVuzP.jpg","url":"https://t.co/rsZvQPWJAN","display_url":"pic.twitter.com/rsZvQPWJAN","expanded_url":"https://twitter.com/juliantinaftbm/status/1143674514087305222/photo/1","type":"photo","sizes":{"thumb":{"w":150,"h":150,"resize":"crop"},"small":{"w":680,"h":398,"resize":"fit"},"large":{"w":686,"h":402,"resize":"fit"},"medium":{"w":686,"h":402,"resize":"fit"}}}]},"source":"<a href=\"http://twitter.com/download/iphone\" rel=\"nofollow\">Twitter for iPhone<\/a>","in_reply_to_status_id":null,"in_reply_to_status_id_str":null,"in_reply_to_user_id":null,"in_reply_to_user_id_str":null,"in_reply_to_screen_name":null,"user":{"id_str":"1129019536932515840","name":"Món. 🌖","screen_name":"juliantinaftbm","location":"Miembro 3 -Poison Squad 🐍","description":"Mi amorcito puro & Mi lucky Star,,,","url":"https://t.co/L44GPX7HGM","entities":{"url":{"urls":[{"url":"https://t.co/L44GPX7HGM","expanded_url":"https://curiouscat.me/juliantinaftbm","display_url":"curiouscat.me/juliantinaftbm","indices":[0,23]}]},"description":{"urls":[]}},"protected":false,"followers_count":1586,"friends_count":173,"listed_count":2,"created_at":"Thu May 16 13:43:28 +0000 2019","favourites_count":7475,"time_zone":null,"verified":false,"statuses_count":6210,"lang":null,"profile_background_color":"F5F8FA","profile_image_url":"http://pbs.twimg.com/profile_images/1144598231134953472/s-hN5pzi_normal.jpg","default_profile":true,"default_profile_image":false},"geo":null,"coordinates":null,"place":null,"contributors":null,"is_quote_status":false,"retweet_count":128,"favorite_count":17,"favorited":false,"retweeted":false,"possibly_sensitive":false,"lang":"es"},"is_quote_status":false,"retweet_count":128,"favorite_count":0,"lang":"es","text":"RT @juliantinaftbm: Cuando barbara dice que quiere platicar con nosotras // Cuando se va y nos deja como sus pendejas  sin responder ningun…","user_id":"188068413","in_user_hashtag_collection":true,"hashtag_origin_checked":true,"cooccurrence_checked":true},{"_id":"1143679726558568448","created_at":"2019-06-26T00:37:50Z","full_text":"RT @makakane1991: Vamos a demostrar que estamos orgullosas de ella \n\nBARBARA X EL MESERO\nBARBARA ES MARIANA\n\n#MacaBeso \n#BarbaraLopezTrendy…","truncated":false,"display_text_range":[0,140],"entities":{"hashtags":[{"text":"MacaBeso","indices":[109,118]},{"text":"BarbaraLopezTrendy","indices":[120,139]}],"symbols":[],"user_mentions":[{"screen_name":"makakane1991","name":"Makita ❤️⚠️","id":1127627800414834688,"id_str":"1127627800414834688","indices":[3,16]}],"urls":[]},"source":"<a href=\"http://twitter.com/download/android\" rel=\"nofollow\">Twitter for Android<\/a>","in_reply_to_status_id":null,"in_reply_to_status_id_str":null,"in_reply_to_user_id":null,"in_reply_to_user_id_str":null,"in_reply_to_screen_name":null,"user":{"id_str":"188068413","name":"👽💚","screen_name":"XpectRo9","location":"Salta, Argentina","description":"Un dia madurare...se ve q hoy no es...","url":null,"protected":false,"followers_count":744,"friends_count":506,"listed_count":7,"created_at":"Tue Sep 07 21:16:19 +0000 2010","favourites_count":35916,"time_zone":null,"verified":false,"statuses_count":51765,"lang":null,"default_profile":false},"geo":null,"coordinates":null,"place":null,"contributors":null,"retweeted_status":{"created_at":"Wed Jun 26 00:14:18 +0000 2019","id":1143673804218150912,"id_str":"1143673804218150912","full_text":"Vamos a demostrar que estamos orgullosas de ella \n\nBARBARA X EL MESERO\nBARBARA ES MARIANA\n\n#MacaBeso \n#BarbaraLopezTrendy \n#SantiagoAchagaTrendy \n#KCAMexico https://t.co/fiTRUFajKJ","truncated":false,"display_text_range":[0,156],"entities":{"hashtags":[{"text":"MacaBeso","indices":[91,100]},{"text":"BarbaraLopezTrendy","indices":[102,121]},{"text":"SantiagoAchagaTrendy","indices":[123,144]},{"text":"KCAMexico","indices":[146,156]}],"symbols":[],"user_mentions":[],"urls":[],"media":[{"id":1143673797079437312,"id_str":"1143673797079437312","indices":[157,180],"media_url":"http://pbs.twimg.com/tweet_video_thumb/D98lQk3XkAAfzcS.jpg","media_url_https":"https://pbs.twimg.com/tweet_video_thumb/D98lQk3XkAAfzcS.jpg","url":"https://t.co/fiTRUFajKJ","display_url":"pic.twitter.com/fiTRUFajKJ","expanded_url":"https://twitter.com/makakane1991/status/1143673804218150912/photo/1","type":"photo","sizes":{"thumb":{"w":150,"h":150,"resize":"crop"},"small":{"w":268,"h":268,"resize":"fit"},"medium":{"w":268,"h":268,"resize":"fit"},"large":{"w":268,"h":268,"resize":"fit"}}}]},"source":"<a href=\"http://twitter.com/download/android\" rel=\"nofollow\">Twitter for Android<\/a>","in_reply_to_status_id":null,"in_reply_to_status_id_str":null,"in_reply_to_user_id":null,"in_reply_to_user_id_str":null,"in_reply_to_screen_name":null,"user":{"id_str":"1127627800414834688","name":"Makita ❤️⚠️","screen_name":"makakane1991","location":"","description":"feliz esperando la película Juliantina @juliantinalape1 !!!","url":null,"entities":{"description":{"urls":[]}},"protected":false,"followers_count":381,"friends_count":219,"listed_count":0,"created_at":"Sun May 12 17:33:12 +0000 2019","favourites_count":284,"time_zone":null,"verified":false,"statuses_count":18748,"lang":null,"profile_background_color":"F5F8FA","profile_image_url":"http://pbs.twimg.com/profile_images/1145842728825044994/FV3EvGAa_normal.jpg","default_profile":true,"default_profile_image":false},"geo":null,"coordinates":null,"place":null,"contributors":null,"is_quote_status":false,"retweet_count":29,"favorite_count":1,"favorited":false,"retweeted":false,"possibly_sensitive":false,"lang":"es"},"is_quote_status":false,"retweet_count":29,"favorite_count":0,"lang":"es","text":"RT @makakane1991: Vamos a demostrar que estamos orgullosas de ella \n\nBARBARA X EL MESERO\nBARBARA ES MARIANA\n\n#MacaBeso \n#BarbaraLopezTrendy…","user_id":"188068413","in_user_hashtag_collection":true,"hashtag_origin_checked":true,"cooccurrence_checked":true},{"_id":"1143679792484667392","created_at":"2019-06-26T00:38:05Z","full_text":"RT @JuliantinaRDom: A veces me quedo observándola y me pregunto seriamente si es verdad que soy heterosexual. No tengo respuesta alguna aún…","truncated":false,"display_text_range":[0,140],"entities":{"hashtags":[],"symbols":[],"user_mentions":[{"screen_name":"JuliantinaRDom","name":"Kis 👠 ~Juliantina Rep. Dom. 🇩🇴","id":760167790988845056,"id_str":"760167790988845056","indices":[3,18]}],"urls":[]},"source":"<a href=\"http://twitter.com/download/android\" rel=\"nofollow\">Twitter for Android<\/a>","in_reply_to_status_id":null,"in_reply_to_status_id_str":null,"in_reply_to_user_id":null,"in_reply_to_user_id_str":null,"in_reply_to_screen_name":null,"user":{"id_str":"188068413","name":"👽💚","screen_name":"XpectRo9","location":"Salta, Argentina","description":"Un dia madurare...se ve q hoy no es...","url":null,"protected":false,"followers_count":744,"friends_count":506,"listed_count":7,"created_at":"Tue Sep 07 21:16:19 +0000 2010","favourites_count":35916,"time_zone":null,"verified":false,"statuses_count":51765,"lang":null,"default_profile":false},"geo":null,"coordinates":null,"place":null,"contributors":null,"retweeted_status":{"created_at":"Wed Jun 26 00:13:05 +0000 2019","id":1143673498847592449,"id_str":"1143673498847592449","full_text":"A veces me quedo observándola y me pregunto seriamente si es verdad que soy heterosexual. No tengo respuesta alguna aún. \n\nBARBARA X EL MESERO\n\nBARBARA ES MARIANA\n\n#MacaBeso \n#BarbaraLopezTrendy \n#SantiagoAchagaTrendy \n#KCAMexico https://t.co/Dpu3hRC3ZI","truncated":false,"display_text_range":[0,229],"entities":{"hashtags":[{"text":"MacaBeso","indices":[164,173]},{"text":"BarbaraLopezTrendy","indices":[175,194]},{"text":"SantiagoAchagaTrendy","indices":[196,217]},{"text":"KCAMexico","indices":[219,229]}],"symbols":[],"user_mentions":[],"urls":[],"media":[{"id":1143673496570122245,"id_str":"1143673496570122245","indices":[230,253],"media_url":"http://pbs.twimg.com/media/D98k_FYXUAUtKND.jpg","media_url_https":"https://pbs.twimg.com/media/D98k_FYXUAUtKND.jpg","url":"https://t.co/Dpu3hRC3ZI","display_url":"pic.twitter.com/Dpu3hRC3ZI","expanded_url":"https://twitter.com/JuliantinaRDom/status/1143673498847592449/photo/1","type":"photo","sizes":{"thumb":{"w":150,"h":150,"resize":"crop"},"small":{"w":452,"h":678,"resize":"fit"},"medium":{"w":452,"h":678,"resize":"fit"},"large":{"w":452,"h":678,"resize":"fit"}}}]},"source":"<a href=\"http://twitter.com/download/android\" rel=\"nofollow\">Twitter for Android<\/a>","in_reply_to_status_id":null,"in_reply_to_status_id_str":null,"in_reply_to_user_id":null,"in_reply_to_user_id_str":null,"in_reply_to_screen_name":null,"user":{"id_str":"760167790988845056","name":"Kis 👠 ~Juliantina Rep. Dom. 🇩🇴","screen_name":"JuliantinaRDom","location":"","description":"🍑\n🍰\nThis is love♡    \n\n☆ [27 de Junio 2019] ☆    •Tenemos Película!! --》 Follow the official account:  @juliantinalape1","url":"https://t.co/Hee0DzrK83","entities":{"url":{"urls":[{"url":"https://t.co/Hee0DzrK83","expanded_url":"https://curiouscat.me/JuliantinaRDom","display_url":"curiouscat.me/JuliantinaRDom","indices":[0,23]}]},"description":{"urls":[]}},"protected":false,"followers_count":239,"friends_count":431,"listed_count":0,"created_at":"Mon Aug 01 17:38:19 +0000 2016","favourites_count":1987,"time_zone":null,"verified":false,"statuses_count":9433,"lang":null,"profile_background_color":"000000","profile_image_url":"http://pbs.twimg.com/profile_images/1146591875001982976/5gIIEI7s_normal.jpg","default_profile":false,"default_profile_image":false},"geo":null,"coordinates":null,"place":null,"contributors":null,"is_quote_status":false,"retweet_count":10,"favorite_count":0,"favorited":false,"retweeted":false,"possibly_sensitive":false,"lang":"es"},"is_quote_status":false,"retweet_count":10,"favorite_count":0,"lang":"es","text":"RT @JuliantinaRDom: A veces me quedo observándola y me pregunto seriamente si es verdad que soy heterosexual. No tengo respuesta alguna aún…","user_id":"188068413","in_user_hashtag_collection":true,"hashtag_origin_checked":true,"cooccurrence_checked":true},{"_id":"1143679854866550784","created_at":"2019-06-26T00:38:20Z","full_text":"RT @GlobalJuliantin: Uffff reto cumplido!🔥👏\n\n¿250 rts y 50 comentarios ahora?\n\nBARBARA X EL MESERO\n\nBARBARA ES MARIANA https://t.co/FotWCIh…","truncated":false,"display_text_range":[0,140],"entities":{"hashtags":[],"symbols":[],"user_mentions":[{"screen_name":"GlobalJuliantin","name":"Global Juliantina 🌍","id":1128304576451551232,"id_str":"1128304576451551232","indices":[3,19]}],"urls":[]},"source":"<a href=\"http://twitter.com/download/android\" rel=\"nofollow\">Twitter for Android<\/a>","in_reply_to_status_id":null,"in_reply_to_status_id_str":null,"in_reply_to_user_id":null,"in_reply_to_user_id_str":null,"in_reply_to_screen_name":null,"user":{"id_str":"188068413","name":"👽💚","screen_name":"XpectRo9","location":"Salta, Argentina","description":"Un dia madurare...se ve q hoy no es...","url":null,"protected":false,"followers_count":744,"friends_count":506,"listed_count":7,"created_at":"Tue Sep 07 21:16:19 +0000 2010","favourites_count":35916,"time_zone":null,"verified":false,"statuses_count":51765,"lang":null,"default_profile":false},"geo":null,"coordinates":null,"place":null,"contributors":null,"retweeted_status":{"created_at":"Wed Jun 26 00:13:10 +0000 2019","id":1143673521681444864,"id_str":"1143673521681444864","full_text":"Uffff reto cumplido!🔥👏\n\n¿250 rts y 50 comentarios ahora?\n\nBARBARA X EL MESERO\n\nBARBARA ES MARIANA https://t.co/FotWCIhYBe","truncated":false,"display_text_range":[0,97],"entities":{"hashtags":[],"symbols":[],"user_mentions":[],"urls":[],"media":[{"id":1143673510285512707,"id_str":"1143673510285512707","indices":[98,121],"media_url":"http://pbs.twimg.com/tweet_video_thumb/D98k_4eXkAM-TCa.jpg","media_url_https":"https://pbs.twimg.com/tweet_video_thumb/D98k_4eXkAM-TCa.jpg","url":"https://t.co/FotWCIhYBe","display_url":"pic.twitter.com/FotWCIhYBe","expanded_url":"https://twitter.com/GlobalJuliantin/status/1143673521681444864/photo/1","type":"photo","sizes":{"thumb":{"w":150,"h":150,"resize":"crop"},"large":{"w":480,"h":268,"resize":"fit"},"small":{"w":480,"h":268,"resize":"fit"},"medium":{"w":480,"h":268,"resize":"fit"}}}]},"source":"<a href=\"http://twitter.com/download/iphone\" rel=\"nofollow\">Twitter for iPhone<\/a>","in_reply_to_status_id":null,"in_reply_to_status_id_str":null,"in_reply_to_user_id":null,"in_reply_to_user_id_str":null,"in_reply_to_screen_name":null,"user":{"id_str":"1128304576451551232","name":"Global Juliantina 🌍","screen_name":"GlobalJuliantin","location":"","description":"Apoyo a Barbara López y Macarena Achaga. ¡Síguenos! 🌍 Squads + Group + Cartel = La combinación perfecta 🥳 | 🎭🐍🧨🕴🏻🦉💀👑⚠️ 😎🤖🤞🏻👤🍓🐷","url":null,"entities":{"description":{"urls":[]}},"protected":false,"followers_count":2474,"friends_count":25,"listed_count":3,"created_at":"Tue May 14 14:22:28 +0000 2019","favourites_count":664,"time_zone":null,"verified":false,"statuses_count":1193,"lang":null,"profile_background_color":"F5F8FA","profile_image_url":"http://pbs.twimg.com/profile_images/1128397476258549760/3XHEqfOl_normal.jpg","default_profile":true,"default_profile_image":false},"geo":null,"coordinates":null,"place":null,"contributors":null,"is_quote_status":false,"retweet_count":384,"favorite_count":48,"favorited":false,"retweeted":false,"possibly_sensitive":true,"lang":"es"},"is_quote_status":false,"retweet_count":384,"favorite_count":0,"lang":"es","text":"RT @GlobalJuliantin: Uffff reto cumplido!🔥👏\n\n¿250 rts y 50 comentarios ahora?\n\nBARBARA X EL MESERO\n\nBARBARA ES MARIANA https://t.co/FotWCIh…","user_id":"188068413","in_user_hashtag_collection":true,"hashtag_origin_checked":true,"cooccurrence_checked":true},{"_id":"1143679918582181888","created_at":"2019-06-26T00:38:35Z","full_text":"RT @soulregui27: Ayer estuvieron flojas con la tendencia de Maca, a ver que pasa con la de Bárbara, inutiles. \n\ntkm amikas\n\nARBARA X EL MES…","truncated":false,"display_text_range":[0,140],"entities":{"hashtags":[],"symbols":[],"user_mentions":[{"screen_name":"soulregui27","name":"Jackie - NOS VAMOS A CASAR🥑🏳️‍🌈","id":271697108,"id_str":"271697108","indices":[3,15]}],"urls":[]},"source":"<a href=\"http://twitter.com/download/android\" rel=\"nofollow\">Twitter for Android<\/a>","in_reply_to_status_id":null,"in_reply_to_status_id_str":null,"in_reply_to_user_id":null,"in_reply_to_user_id_str":null,"in_reply_to_screen_name":null,"user":{"id_str":"188068413","name":"👽💚","screen_name":"XpectRo9","location":"Salta, Argentina","description":"Un dia madurare...se ve q hoy no es...","url":null,"protected":false,"followers_count":744,"friends_count":506,"listed_count":7,"created_at":"Tue Sep 07 21:16:19 +0000 2010","favourites_count":35916,"time_zone":null,"verified":false,"statuses_count":51765,"lang":null,"default_profile":false},"geo":null,"coordinates":null,"place":null,"contributors":null,"retweeted_status":{"created_at":"Wed Jun 26 00:13:05 +0000 2019","id":1143673501590667264,"id_str":"1143673501590667264","full_text":"Ayer estuvieron flojas con la tendencia de Maca, a ver que pasa con la de Bárbara, inutiles. \n\ntkm amikas\n\nARBARA X EL MESERO \nBARBARA ES MARIANA https://t.co/Gi0xqdOCJU","truncated":false,"display_text_range":[0,145],"entities":{"hashtags":[],"symbols":[],"user_mentions":[],"urls":[],"media":[{"id":1143673493525020672,"id_str":"1143673493525020672","indices":[146,169],"media_url":"http://pbs.twimg.com/media/D98k-6CWwAAtbfj.jpg","media_url_https":"https://pbs.twimg.com/media/D98k-6CWwAAtbfj.jpg","url":"https://t.co/Gi0xqdOCJU","display_url":"pic.twitter.com/Gi0xqdOCJU","expanded_url":"https://twitter.com/soulregui27/status/1143673501590667264/photo/1","type":"photo","sizes":{"thumb":{"w":150,"h":150,"resize":"crop"},"medium":{"w":680,"h":447,"resize":"fit"},"large":{"w":680,"h":447,"resize":"fit"},"small":{"w":680,"h":447,"resize":"fit"}}}]},"source":"<a href=\"http://twitter.com\" rel=\"nofollow\">Twitter Web Client<\/a>","in_reply_to_status_id":null,"in_reply_to_status_id_str":null,"in_reply_to_user_id":null,"in_reply_to_user_id_str":null,"in_reply_to_screen_name":null,"user":{"id_str":"271697108","name":"Jackie - NOS VAMOS A CASAR🥑🏳️‍🌈","screen_name":"soulregui27","location":"México. Member #6 Poison Squad","description":"#LOT  🇲🇽  Avalance  Zarlie✨ Sanvers Clexa #IMISSTHEM  Juliantina🍑🍰🏳️‍🌈  Nota: Manejo el mame.🥑22.","url":null,"entities":{"description":{"urls":[]}},"protected":false,"followers_count":4856,"friends_count":1801,"listed_count":28,"created_at":"Fri Mar 25 00:58:53 +0000 2011","favourites_count":71444,"time_zone":null,"verified":false,"statuses_count":89542,"lang":null,"profile_background_color":"ACDED6","profile_image_url":"http://pbs.twimg.com/profile_images/1138201972421668870/vkctXs81_normal.png","default_profile":false,"default_profile_image":false},"geo":null,"coordinates":null,"place":null,"contributors":null,"is_quote_status":false,"retweet_count":179,"favorite_count":28,"favorited":false,"retweeted":false,"possibly_sensitive":false,"lang":"es"},"is_quote_status":false,"retweet_count":179,"favorite_count":0,"lang":"es","text":"RT @soulregui27: Ayer estuvieron flojas con la tendencia de Maca, a ver que pasa con la de Bárbara, inutiles. \n\ntkm amikas\n\nARBARA X EL MES…","user_id":"188068413","in_user_hashtag_collection":true,"hashtag_origin_checked":true,"cooccurrence_checked":true},{"_id":"1143682001691697152","created_at":"2019-06-26T00:46:52Z","full_text":"RT @Alemaco7: BARBARA X EL MESERO\n\nBARBARA ES MARIANA\n#MacaBeso\n#BarbaraLopezTrendy\n#SantiagoAchagaTrendy\n#KCAMexico https://t.co/WkImTzgDng","truncated":false,"display_text_range":[0,140],"entities":{"hashtags":[{"text":"MacaBeso","indices":[54,63]},{"text":"BarbaraLopezTrendy","indices":[64,83]},{"text":"SantiagoAchagaTrendy","indices":[84,105]},{"text":"KCAMexico","indices":[106,116]}],"symbols":[],"user_mentions":[{"screen_name":"Alemaco7","name":"Achagalop🥑","id":1128376617267544064,"id_str":"1128376617267544064","indices":[3,12]}],"urls":[],"media":[{"id":1143679711777890304,"id_str":"1143679711777890304","indices":[117,140],"media_url":"http://pbs.twimg.com/media/D98qo21XoAAZipa.jpg","media_url_https":"https://pbs.twimg.com/media/D98qo21XoAAZipa.jpg","url":"https://t.co/WkImTzgDng","display_url":"pic.twitter.com/WkImTzgDng","expanded_url":"https://twitter.com/Alemaco7/status/1143679714659377154/photo/1","type":"photo","sizes":{"thumb":{"w":150,"h":150,"resize":"crop"},"large":{"w":539,"h":259,"resize":"fit"},"small":{"w":539,"h":259,"resize":"fit"},"medium":{"w":539,"h":259,"resize":"fit"}},"source_status_id":1143679714659377154,"source_status_id_str":"1143679714659377154","source_user_id":1128376617267544064,"source_user_id_str":"1128376617267544064"}]},"source":"<a href=\"http://twitter.com/download/android\" rel=\"nofollow\">Twitter for Android<\/a>","in_reply_to_status_id":null,"in_reply_to_status_id_str":null,"in_reply_to_user_id":null,"in_reply_to_user_id_str":null,"in_reply_to_screen_name":null,"user":{"id_str":"188068413","name":"👽💚","screen_name":"XpectRo9","location":"Salta, Argentina","description":"Un dia madurare...se ve q hoy no es...","url":null,"protected":false,"followers_count":744,"friends_count":506,"listed_count":7,"created_at":"Tue Sep 07 21:16:19 +0000 2010","favourites_count":35916,"time_zone":null,"verified":false,"statuses_count":51765,"lang":null,"default_profile":false},"geo":null,"coordinates":null,"place":null,"contributors":null,"retweeted_status":{"created_at":"Wed Jun 26 00:37:47 +0000 2019","id":1143679714659377154,"id_str":"1143679714659377154","full_text":"BARBARA X EL MESERO\n\nBARBARA ES MARIANA\n#MacaBeso\n#BarbaraLopezTrendy\n#SantiagoAchagaTrendy\n#KCAMexico https://t.co/WkImTzgDng","truncated":false,"display_text_range":[0,102],"entities":{"hashtags":[{"text":"MacaBeso","indices":[40,49]},{"text":"BarbaraLopezTrendy","indices":[50,69]},{"text":"SantiagoAchagaTrendy","indices":[70,91]},{"text":"KCAMexico","indices":[92,102]}],"symbols":[],"user_mentions":[],"urls":[],"media":[{"id":1143679711777890304,"id_str":"1143679711777890304","indices":[103,126],"media_url":"http://pbs.twimg.com/media/D98qo21XoAAZipa.jpg","media_url_https":"https://pbs.twimg.com/media/D98qo21XoAAZipa.jpg","url":"https://t.co/WkImTzgDng","display_url":"pic.twitter.com/WkImTzgDng","expanded_url":"https://twitter.com/Alemaco7/status/1143679714659377154/photo/1","type":"photo","sizes":{"thumb":{"w":150,"h":150,"resize":"crop"},"large":{"w":539,"h":259,"resize":"fit"},"small":{"w":539,"h":259,"resize":"fit"},"medium":{"w":539,"h":259,"resize":"fit"}}}]},"source":"<a href=\"http://twitter.com/download/android\" rel=\"nofollow\">Twitter for Android<\/a>","in_reply_to_status_id":1143679706342076416,"in_reply_to_status_id_str":"1143679706342076416","in_reply_to_user_id":1128376617267544064,"in_reply_to_user_id_str":"1128376617267544064","in_reply_to_screen_name":"Alemaco7","user":{"id_str":"1128376617267544064","name":"Achagalop🥑","screen_name":"Alemaco7","location":"","description":"✌\nSolo un bot más de Juliantina❤❤❤\nMacassan es real amikas sorry dense cuenta","url":null,"entities":{"description":{"urls":[]}},"protected":false,"followers_count":54,"friends_count":143,"listed_count":0,"created_at":"Tue May 14 19:08:44 +0000 2019","favourites_count":3271,"time_zone":null,"verified":false,"statuses_count":3850,"lang":null,"profile_background_color":"F5F8FA","profile_image_url":"http://pbs.twimg.com/profile_images/1145430451105890304/Ivm4a3kr_normal.jpg","default_profile":true,"default_profile_image":false},"geo":null,"coordinates":null,"place":null,"contributors":null,"is_quote_status":false,"retweet_count":4,"favorite_count":1,"favorited":false,"retweeted":false,"possibly_sensitive":false,"lang":"es"},"is_quote_status":false,"retweet_count":4,"favorite_count":0,"possibly_sensitive":false,"lang":"es","text":"RT @Alemaco7: BARBARA X EL MESERO\n\nBARBARA ES MARIANA\n#MacaBeso\n#BarbaraLopezTrendy\n#SantiagoAchagaTrendy\n#KCAMexico https://t.co/WkImTzgDng","user_id":"188068413","in_user_hashtag_collection":true,"hashtag_origin_checked":true,"cooccurrence_checked":true},{"_id":"1143682090485129216","created_at":"2019-06-26T00:47:13Z","full_text":"RT @Juliantin437: @Val2Juls @Carranza_RX Yo creo que Barbie será divertida en esta película 🤗\n\nBARBARA X EL MESERO\n\nBARBARA ES MARIANA","truncated":false,"display_text_range":[0,134],"entities":{"hashtags":[],"symbols":[],"user_mentions":[{"screen_name":"Juliantin437","name":"Juliantina es Magia V.2 💕🌈","id":1130098302513500160,"id_str":"1130098302513500160","indices":[3,16]},{"screen_name":"Val2Juls","name":"// JULS&VAL2 //","id":1129081298419638272,"id_str":"1129081298419638272","indices":[18,27]},{"screen_name":"Carranza_RX","name":"R. X. Carranza Transmigrada","id":1129204394996711424,"id_str":"1129204394996711424","indices":[28,40]}],"urls":[]},"source":"<a href=\"http://twitter.com/download/android\" rel=\"nofollow\">Twitter for Android<\/a>","in_reply_to_status_id":null,"in_reply_to_status_id_str":null,"in_reply_to_user_id":null,"in_reply_to_user_id_str":null,"in_reply_to_screen_name":null,"user":{"id_str":"188068413","name":"👽💚","screen_name":"XpectRo9","location":"Salta, Argentina","description":"Un dia madurare...se ve q hoy no es...","url":null,"protected":false,"followers_count":744,"friends_count":506,"listed_count":7,"created_at":"Tue Sep 07 21:16:19 +0000 2010","favourites_count":35916,"time_zone":null,"verified":false,"statuses_count":51765,"lang":null,"default_profile":false},"geo":null,"coordinates":null,"place":null,"contributors":null,"retweeted_status":{"created_at":"Wed Jun 26 00:36:28 +0000 2019","id":1143679382982135814,"id_str":"1143679382982135814","full_text":"@Val2Juls @Carranza_RX Yo creo que Barbie será divertida en esta película 🤗\n\nBARBARA X EL MESERO\n\nBARBARA ES MARIANA","truncated":false,"display_text_range":[23,116],"entities":{"hashtags":[],"symbols":[],"user_mentions":[{"screen_name":"Val2Juls","name":"// JULS&VAL2 //","id":1129081298419638272,"id_str":"1129081298419638272","indices":[0,9]},{"screen_name":"Carranza_RX","name":"R. X. Carranza Transmigrada","id":1129204394996711424,"id_str":"1129204394996711424","indices":[10,22]}],"urls":[]},"source":"<a href=\"http://twitter.com/download/android\" rel=\"nofollow\">Twitter for Android<\/a>","in_reply_to_status_id":1143675874287456257,"in_reply_to_status_id_str":"1143675874287456257","in_reply_to_user_id":1129081298419638272,"in_reply_to_user_id_str":"1129081298419638272","in_reply_to_screen_name":"Val2Juls","user":{"id_str":"1130098302513500160","name":"Juliantina es Magia V.2 🤡💕🌈🇨🇴","screen_name":"Juliantin437","location":"Bogotá, D.C., Colombia","description":"apoyo incondicional a Maca y Barbie y al Fandom Juliantina","url":null,"entities":{"description":{"urls":[]}},"protected":false,"followers_count":172,"friends_count":286,"listed_count":0,"created_at":"Sun May 19 13:10:06 +0000 2019","favourites_count":4451,"time_zone":null,"verified":false,"statuses_count":4793,"lang":null,"profile_background_color":"F5F8FA","profile_image_url":"http://pbs.twimg.com/profile_images/1145078286109806592/rDG3nV1J_normal.jpg","default_profile":true,"default_profile_image":false},"geo":null,"coordinates":null,"place":null,"contributors":null,"is_quote_status":false,"retweet_count":12,"favorite_count":0,"favorited":false,"retweeted":false,"lang":"es"},"is_quote_status":false,"retweet_count":12,"favorite_count":0,"lang":"es","text":"RT @Juliantin437: @Val2Juls @Carranza_RX Yo creo que Barbie será divertida en esta película 🤗\n\nBARBARA X EL MESERO\n\nBARBARA ES MARIANA","user_id":"188068413","in_user_hashtag_collection":true,"hashtag_origin_checked":true,"cooccurrence_checked":true}],"titulo":"E1 - Tweets de un usuario","enunciado":"Hallar los tweets del usuario con userid '818839458'.","concepto":"find con igualdad (el WHERE más simple)","codigo":"// El usuario del enunciado (818839458) no está en la base reducida del taller: devolvería [].\n// Usamos el usuario más activo de la base, 188068413 (@XpectRo9, 61 tweets).\ndb.tweets.find({\n  user_id: \"188068413\", // ojo: es un string, no un número. 188068413 (sin comillas) no matchea nada\n})","hash":"d1e56d6c9b7964b87c7a32a4d0049f2217d3f73f"},"E02":{"total":1,"filas":[{"full_text":"RT @BTS_twt: 부산 좋네에~~ https://t.co/2nfB6OeVbW","user":{"screen_name":"belbeele"},"retweet_count":545714}],"titulo":"E2 - Más de 500.000 retweets","enunciado":"Hallar aquellos tweets que tengan más de 500000 retweets.","concepto":"operadores de comparación ($gt, $gte, $lt, $lte, $ne)","codigo":"db.tweets.find(\n  { retweet_count: { $gt: 500000 } }, // retweet_count > 500000\n  { _id: 0, \"user.screen_name\": 1, retweet_count: 1, full_text: 1 }, // proyección: solo lo que nos interesa\n)","hash":"09e97a69247709b4aaf1969cb5bcba1266a5d843"},"E03":{"total":2690,"filas":[{"place":{"country":"Argentina"},"retweet_count":0},{"place":{"country":"Argentina"},"retweet_count":0},{"place":{"country":"Argentina"},"retweet_count":0},{"place":{"country":"Argentina"},"retweet_count":0},{"place":{"country":"Argentina"},"retweet_count":0},{"place":{"country":"Argentina"},"retweet_count":0},{"place":{"country":"Argentina"},"retweet_count":0},{"place":{"country":"Argentina"},"retweet_count":0},{"place":{"country":"Argentina"},"retweet_count":5},{"place":{"country":"Argentina"},"retweet_count":0}],"titulo":"E3 - Retweets desde Argentina o Brasil","enunciado":"Mostrar la cantidad de retweets de los tweets que se hayan hecho desde Argentina o Brasil.","concepto":"$in (equivale a un $or sobre el mismo campo) y campos anidados con punto","codigo":"db.tweets.find(\n  // El país NO está en \"geo\" (eso son coordenadas GeoJSON): está en place.country\n  { \"place.country\": { $in: [\"Argentina\", \"Brasil\"] } },\n  { _id: 0, \"place.country\": 1, retweet_count: 1 },\n)\n// Si quisiéramos la SUMA total de retweets, ya no alcanza con find: hace falta aggregate\n//   db.tweets.aggregate([\n//     { $match: { \"place.country\": { $in: [\"Argentina\", \"Brasil\"] } } },\n//     { $group: { _id: \"$place.country\", retweets: { $sum: \"$retweet_count\" } } },\n//   ])","hash":"38f0347e9178d9486bb84ec53dc579e1c53f1954"},"E04":{"total":3,"filas":[{"user":{"screen_name":"DisapArgentina"},"retweet_count":209666},{"user":{"screen_name":"TheJoakoKpo123"},"retweet_count":227234},{"user":{"screen_name":"agar_rod"},"retweet_count":206100}],"titulo":"E4 - Usuarios con tweets virales en español","enunciado":"Hallar los usuarios que tengan tweets con 200000 o más retweets y sean en idioma español.","concepto":"varias condiciones en el filtro = AND implícito; el idioma está en \"lang\"","codigo":"db.tweets.find(\n  {\n    retweet_count: { $gte: 200000 }, // 200000 o más\n    lang: \"es\",                      // AND implícito: todas las claves del filtro se tienen que cumplir\n  },\n  { _id: 0, \"user.screen_name\": 1, retweet_count: 1 },\n)\n// Ojo: devuelve un documento por TWEET, así que un usuario puede repetirse.\n// Para la lista de usuarios sin repetidos: db.tweets.distinct(\"user.screen_name\", { ...mismo filtro... })","hash":"acf52abc052774ae249a2385a68877ca9fb76261"},"E05":{"total":77,"filas":[{"place":{"full_name":"Independencia, Chile","country":"Chile"},"retweet_count":0},{"place":{"full_name":"Miami Beach, FL","country":"Estados Unidos"},"retweet_count":0},{"place":{"full_name":"Sunny Isles Beach, FL","country":"Estados Unidos"},"retweet_count":3},{"place":{"full_name":"Cuscatancingo, El Salvador","country":"El Salvador"},"retweet_count":0},{"place":{"full_name":"Bogotá, D.C., Colombia","country":"Colombia"},"retweet_count":0},{"place":{"full_name":"Teatro Gran Rex","country":""},"retweet_count":0},{"place":{"full_name":"San Pedro de Atacama, Chile","country":"Chile"},"retweet_count":0},{"place":{"full_name":"Machupicchu, Peru","country":"Peru"},"retweet_count":0},{"place":{"full_name":"Ibi, España","country":"España"},"retweet_count":0},{"place":{"full_name":"Asuncion, Paraguay","country":"Paraguay"},"retweet_count":1}],"titulo":"E5 - Retweets fuera de Argentina y Brasil","enunciado":"Mostrar la cantidad de retweets para los tweets que no se hayan hecho en Argentina ni Brasil, pero sí tengan un lugar definido y sean en español.","concepto":"$ne null (campo presente y no nulo) y $nin (not in)","codigo":"db.tweets.find(\n  {\n    lang: \"es\",\n    place: { $ne: null },                               // \"tiene lugar definido\": excluye null Y campos ausentes\n    \"place.country\": { $nin: [\"Argentina\", \"Brasil\"] }, // ni Argentina ni Brasil\n  },\n  { _id: 0, \"place.country\": 1, \"place.full_name\": 1, retweet_count: 1 },\n)\n// No hace falta aggregate: es un filtro + proyección. Aggregate entra cuando hay que AGRUPAR o transformar.","hash":"2f5d615274c318c076618c5fd1b7284c9304c4d4"},"E06":{"total":1169,"filas":[{"user":{"name":"Juan Pablo Marifil","screen_name":"juampyblue"}},{"user":{"name":"Juan M. Vizoso","screen_name":"JuanVizoso"}},{"user":{"name":"Juan M. Fernandez","screen_name":"JMFtweet"}},{"user":{"name":"Juan Bochicchio","screen_name":"JuanBochicchio"}},{"user":{"name":"Juan Carlos  Honegger","screen_name":"JuanHonegger"}},{"user":{"name":"Juan Ignacio Piperno","screen_name":"PipernoJuan"}},{"user":{"name":"Juan Pablo Vargas","screen_name":"JPVarg"}},{"user":{"name":"Juan","screen_name":"jmanuel_cai"}},{"user":{"name":"JuanPuebla🐍","screen_name":"pueblajuan1"}},{"user":{"name":"Juan Carlos Biagioni🇦🇷🇦🇷🇦🇷","screen_name":"jcb_1952"}}],"titulo":"E6 - Usuarios que se llaman Juan","enunciado":"Mostrar los screen name de aquellos usuarios que tengan \"Juan\" como parte de su nombre.","concepto":"regex y documentos embebidos (user.name)","codigo":"db.tweets.find(\n  { \"user.name\": /Juan/ }, // el nombre vive DENTRO del subdocumento user. Con /Juan/i ignoraríamos mayúsculas\n  { _id: 0, \"user.name\": 1, \"user.screen_name\": 1 },\n)","hash":"2999f1bd930700cbf211be155f0de31f0dfec6c8"},"E07":{"total":10,"filas":[{"user":{"screen_name":"belbeele"},"retweet_count":545714},{"user":{"screen_name":"cecil_Arg"},"retweet_count":477325},{"user":{"screen_name":"JuanaVillafane"},"retweet_count":467437},{"user":{"screen_name":"cecil_Arg"},"retweet_count":464456},{"user":{"screen_name":"cecil_Arg"},"retweet_count":462205},{"user":{"screen_name":"AnahiSegura6"},"retweet_count":455511},{"user":{"screen_name":"belbeele"},"retweet_count":455027},{"user":{"screen_name":"belbeele"},"retweet_count":452958},{"user":{"screen_name":"hobirikiriki"},"retweet_count":452900},{"user":{"screen_name":"Ivannaeri"},"retweet_count":450844}],"titulo":"E7 - Top 10 por retweets (find)","enunciado":"Mostrar de los 10 tweets con más retweets, su usuario y la cantidad de retweets.","concepto":"el cursor: sort + limit","codigo":"db.tweets.find(\n  {},                                                    // sin filtro: todos\n  { _id: 0, \"user.screen_name\": 1, retweet_count: 1 },\n)\n  .sort({ retweet_count: -1 }) // -1 = descendente\n  .limit(10)","hash":"397acbdcf0d54ec98e7e06e3bfc630cae94120cb"},"E08":{"total":10,"filas":[{"retweet_count":450844,"usuario":"Ivannaeri"},{"retweet_count":452900,"usuario":"hobirikiriki"},{"retweet_count":452958,"usuario":"belbeele"},{"retweet_count":455027,"usuario":"belbeele"},{"retweet_count":455511,"usuario":"AnahiSegura6"},{"retweet_count":462205,"usuario":"cecil_Arg"},{"retweet_count":464456,"usuario":"cecil_Arg"},{"retweet_count":467437,"usuario":"JuanaVillafane"},{"retweet_count":477325,"usuario":"cecil_Arg"},{"retweet_count":545714,"usuario":"belbeele"}],"titulo":"E8 - Top 10 por retweets, ascendente","enunciado":"Mostrar de los 10 tweets con más retweets, su usuario y la cantidad de retweets. Ordenar la salida de forma ascendente.","concepto":"el pipeline es una secuencia: el orden de las etapas importa","codigo":"db.tweets.aggregate([\n  { $sort: { retweet_count: -1 } },  // 1. los más retuiteados primero\n  { $limit: 10 },                    // 2. me quedo con el top 10\n  {\n    $project: {                      // 3. renombro y recorto campos\n      _id: 0,\n      usuario: \"$user.screen_name\",\n      retweet_count: 1,\n    },\n  },\n  { $sort: { retweet_count: 1 } },   // 4. recién ahora ordeno ascendente\n])\n// Si hiciéramos sort ascendente + limit 10 obtendríamos los 10 MENOS retuiteados.","hash":"7ec905dae761a08ab0d8b5139786a144ec9543bb"},"E09":{"total":10,"filas":[{"_id":"FelizAniBersarioRiBer","cantidad":344},{"_id":"SiniestraVidal","cantidad":325},{"_id":"MacriOSaqueoK","cantidad":250},{"_id":"NoAGraham","cantidad":150},{"_id":"BuenMiercoles","cantidad":145},{"_id":"HabraConsecuencias","cantidad":143},{"_id":"MiVotoEsParaFF","cantidad":129},{"_id":"AHORA","cantidad":113},{"_id":"LaPlata","cantidad":104},{"_id":"River","cantidad":98}],"titulo":"E9 - Los 10 hashtags más usados","enunciado":"Encontrar los 10 hashtags más usados.","concepto":"$unwind + $group + $sum: 1 (contar)","codigo":"db.tweets.aggregate([\n  { $unwind: \"$entities.hashtags\" },  // 1. un documento por cada hashtag de cada tweet\n  {\n    $group: {\n      _id: \"$entities.hashtags.text\", // 2. GROUP BY texto del hashtag\n      cantidad: { $sum: 1 },          //    COUNT(*): suma 1 por documento\n    },\n  },\n  { $sort: { cantidad: -1 } },        // 3. ORDER BY cantidad DESC\n  { $limit: 10 },                     // 4. LIMIT 10\n])","hash":"984e2dd4f9eb9852f6c14338d8dd357c081dcca4"},"E10":{"total":5,"filas":[{"_id":"mauriciomacri","menciones":673},{"_id":"alferdez","menciones":531},{"_id":"juan_amorin","menciones":369},{"_id":"mariuvidal","menciones":365},{"_id":"jlespert","menciones":341}],"titulo":"E10 - Los 5 usuarios más mencionados","enunciado":"Encontrar los 5 usuarios más mencionados.","concepto":"$unwind de un array de objetos; las referencias a campos llevan $","codigo":"db.tweets.aggregate([\n  { $unwind: \"$entities.user_mentions\" },           // un documento por cada @mención\n  {\n    $group: {\n      _id: \"$entities.user_mentions.screen_name\",   // con $: el VALOR del campo. Sin $: un string literal\n      menciones: { $sum: 1 },\n    },\n  },\n  { $sort: { menciones: -1 } },\n  { $limit: 5 },\n])","hash":"7e809b93deb8f67363f7013a067c241f23c70c07"},"E11":{"total":2,"filas":[{"_id":"Argentina","promedio_retweets":0.8876026885735624,"tweets":2678},{"_id":"resto","promedio_retweets":2119.9304371056905,"tweets":97322}],"titulo":"E11 - Promedio de retweets: Argentina vs. el resto","enunciado":"Hallar la cantidad de retweets promedio para los tweets que se hayan hecho desde Argentina y aquellos que no.","concepto":"el _id del $group puede ser una EXPRESIÓN calculada","codigo":"db.tweets.aggregate([\n  {\n    $group: {\n      _id: {\n        $cond: [                                    // un if/else: el grupo se llama según la condición\n          { $eq: [\"$place.country\", \"Argentina\"] }, // ¿el tweet es de Argentina?\n          \"Argentina\",                              // si sí\n          \"resto\",                                  // si no: otro país, o sin place (da false también)\n        ],\n      },\n      promedio_retweets: { $avg: \"$retweet_count\" },\n      tweets: { $sum: 1 },\n    },\n  },\n])\n// Versión mínima: _id: { $eq: [\"$place.country\", \"Argentina\"] } -> dos grupos, true y false.","hash":"81f0a05b1c7b473ecb34eef08349145acc535255"},"E11b":{"total":3,"filas":[{"_id":{"grupo":"Argentina","tipo":"original"},"promedio_retweets":0.8876026885735624,"tweets":2678},{"_id":{"grupo":"resto","tipo":"original"},"promedio_retweets":1.2271787960467206,"tweets":44520},{"_id":{"grupo":"resto","tipo":"retweet"},"promedio_retweets":3906.314836559221,"tweets":52802}],"titulo":"E11b - ¿Por qué el resto promedia tanto más?","enunciado":"Mismo promedio de E11, pero separando tweets originales de retweets.","concepto":"_id compuesto con dos expresiones; $ifNull para preguntar si un campo existe","codigo":"db.tweets.aggregate([\n  {\n    $group: {\n      _id: {\n        grupo: {\n          $cond: [{ $eq: [\"$place.country\", \"Argentina\"] }, \"Argentina\", \"resto\"],\n        },\n        tipo: { $cond: [{ $ifNull: [\"$retweeted_status\", false] }, \"retweet\", \"original\"] },\n      },\n      promedio_retweets: { $avg: \"$retweet_count\" },\n      tweets: { $sum: 1 },\n    },\n  },\n  { $sort: { \"_id.grupo\": 1, \"_id.tipo\": 1 } },\n])\n// $ifNull devuelve retweeted_status si existe (verdadero) o false si no está: un \"¿tiene el campo?\" dentro de una expresión.","hash":"c225cd3133bd846e2dd33a0f7551d5823230ad75"},"E11c":{"total":4,"filas":[{"user":{"screen_name":"belbeele"},"retweeted_status":{"user":{"screen_name":"BTS_twt"},"retweet_count":545714},"retweet_count":545714},{"user":{"screen_name":"cecil_Arg"},"retweeted_status":{"user":{"screen_name":"BTS_twt"},"retweet_count":477325},"retweet_count":477325},{"user":{"screen_name":"JuanaVillafane"},"retweeted_status":{"user":{"screen_name":"BTS_twt"},"retweet_count":467437},"retweet_count":467437},{"user":{"screen_name":"cecil_Arg"},"retweeted_status":{"user":{"screen_name":"BTS_twt"},"retweet_count":464456},"retweet_count":464456}],"titulo":"E11c - Los retweets heredan el contador","enunciado":"Ver, en los retweets con más retweet_count, de dónde sale ese número.","concepto":"el retweet_count de un retweet es el del tweet ORIGINAL (dato embebido y copiado)","codigo":"db.tweets.find(\n  { retweeted_status: { $exists: true } },  // solo retweets\n  {\n    _id: 0,\n    \"user.screen_name\": 1,                  // quién retuiteó\n    retweet_count: 1,                       // el número que E11 promedia\n    \"retweeted_status.user.screen_name\": 1, // autor del tweet original\n    \"retweeted_status.retweet_count\": 1,    // retweets del ORIGINAL\n  },\n)\n  .sort({ retweet_count: -1 })\n  .limit(4)","hash":"2e57b34d0dc545383855463e76052a1d1aee5377"},"E12":{"total":54877,"filas":[{"_id":"188068413","tweets":["1143677433780080640","1143678722232520712","1143679192556548097","1143679316674453506","1143679726558568448","1143679792484667392","... +55"],"n_tweets":61},{"_id":"33350532","tweets":["1143672634443522048","1143672992733499392","1143673806722088963","1143677637828796418","1143677700206485504","1143679909249921024","... +52"],"n_tweets":58},{"_id":"2585995525","tweets":["1143815747036164096","1143818119821090817","1143818511258722310","1143820496213032960","1143821569787092993","1143821704118120449","... +51"],"n_tweets":57},{"_id":"1007315294","tweets":["1143841530530189312","1143843587299454982","1143844486100992000","1143844503066939394","1143844719677435904","1143844956735528960","... +43"],"n_tweets":49},{"_id":"1013443061010042880","tweets":["1143670424703787010","1143683686463954944","1143729752420900866","1143734899469369347","1143738296411021313","1143745339461124101","... +42"],"n_tweets":48},{"_id":"825447963015204864","tweets":["1143672289696894976","1143673369168101378","1143673394770141184","1143676391990468608","1143676503353413632","1143677444848857088","... +40"],"n_tweets":46},{"_id":"882360742502174721","tweets":["1143696799334641664","1143848767650750465","1143848957975715841","1143849154461880320","1143851635191492608","1143856038271172608","... +34"],"n_tweets":40},{"_id":"243300546","tweets":["1143670458312810496","1143670915819036672","1143672029687832576","1143673456854278144","1143675053378351105","1143675587652915200","... +34"],"n_tweets":40},{"_id":"978848175208435712","tweets":["1143711682096750592","1143719678579228672","1143724645197238272","1143759193255698437","1143759346423205888","1143761892122464257","... +33"],"n_tweets":39},{"_id":"553805750","tweets":["1143690121411272706","1143690469802684416","1143691284001042432","1143691984294621191","1143695600589971456","1143695646593093632","... +29"],"n_tweets":35}],"titulo":"E12 - Lista de tweets por usuario","enunciado":"Por cada usuario obtener una lista de ids de tweets y el largo de la misma.","concepto":"$push arma un array dentro del grupo; $size lo mide","codigo":"db.tweets.aggregate([\n  {\n    $group: {\n      _id: \"$user_id\",\n      tweets: { $push: \"$_id\" },          // junta los _id de cada grupo en un array\n    },\n  },\n  { $addFields: { n_tweets: { $size: \"$tweets\" } } }, // agrega un campo calculado sin perder los demás\n  { $sort: { n_tweets: -1 } },            // (para que se vean primero los más activos)\n])","hash":"374dc89160c84a86c2bca04201c87773b146031f"},"E13":{"total":1,"filas":[{"_id":"243300546","usuario":"lovequattordio","tweets":40,"retweets":27862}],"titulo":"E13 - Retweets de los 10 usuarios más activos","enunciado":"Hallar la máxima cantidad de retweets totales que tuvieron los 10 usuarios con más tweets.","concepto":"agrupar, cortar, y volver a operar sobre el resultado (el patrón de Pizzagram)","codigo":"db.tweets.aggregate([\n  {\n    $group: {\n      _id: \"$user_id\",\n      usuario: { $first: \"$user.screen_name\" },\n      tweets: { $sum: 1 },                     // cuántos tweets tiene\n      retweets: { $sum: \"$retweet_count\" },    // cuántos retweets suman entre todos\n    },\n  },\n  { $sort: { tweets: -1 } },   // 1. los 10 usuarios con más tweets...\n  { $limit: 10 },\n  { $sort: { retweets: -1 } }, // 2. ...y de esos, el de más retweets totales\n  { $limit: 1 },\n])\n// Otra lectura del enunciado: \"el máximo retweet_count de un tweet\" -> retweets: { $max: \"$retweet_count\" }","hash":"226227f616bc0d63c2fa7889f9d9193f4da81bab"},"E14":{"total":82425,"filas":[{"_id":{"usuario":"Soygabycostilla","hora":1},"tweets":21},{"_id":{"usuario":"LimonadaDulceOK","hora":23},"tweets":21},{"_id":{"usuario":"HerviHlv","hora":11},"tweets":19},{"_id":{"usuario":"gonzaxflorcita","hora":1},"tweets":19},{"_id":{"usuario":"XpectRo9","hora":19},"tweets":17},{"_id":{"usuario":"ElisaElisa110","hora":0},"tweets":17},{"_id":{"usuario":"HerviHlv","hora":12},"tweets":17},{"_id":{"usuario":"JuarezNissi09","hora":2},"tweets":17},{"_id":{"usuario":"rosalipolitis4","hora":1},"tweets":17},{"_id":{"usuario":"ximena020316","hora":1},"tweets":16}],"titulo":"E14 - Tweets por usuario y por hora","enunciado":"Hallar para cada intervalo de una hora cuántos tweets realizó cada usuario.","concepto":"_id compuesto (GROUP BY de dos columnas) y operadores de fecha","codigo":"db.tweets.aggregate([\n  {\n    $group: {\n      _id: {\n        usuario: \"$user.screen_name\",\n        hora: { $hour: \"$created_at\" }, // 21:50:10 -> 21 (todos los tweets son del mismo día)\n      },\n      tweets: { $sum: 1 },\n    },\n  },\n  { $sort: { tweets: -1 } },\n])\n// Si hubiera varios días, $hour mezclaría las 21 h de todos. Para intervalos reales:\n//   hora: { $dateTrunc: { date: \"$created_at\", unit: \"hour\" } }   // 2019-06-26T21:00:00Z","hash":"3063a4756062b91b7d5ed3db3fa7fee12c09db97"},"P":{"total":1,"filas":[{"ip":"45.230.18.7","cantidad_pizzerias":7}],"titulo":"Pizzagram - El bot que operó en más pizzerías","enunciado":"Obtener la IP del bot (exactamente 10 comentarios para una misma pizzería) que haya operado en la mayor cantidad de pizzerías.","concepto":"$unwind + doble $group (el primero con _id compuesto) + $match como HAVING","codigo":"db.publicaciones.aggregate([\n  { $unwind: \"$comentarios\" },                  // 1. un documento por comentario\n  {\n    $group: {                                   // 2. contar comentarios por (pizzería, ip)\n      _id: { pizzeria: \"$pizzeria\", ip: \"$comentarios.ip\" },\n      comentarios: { $sum: 1 },\n    },\n  },\n  { $match: { comentarios: 10 } },              // 3. HAVING COUNT(*) = 10  ->  bots\n  {\n    $group: {                                   // 4. por cada ip bot, ¿en cuántas pizzerías operó?\n      _id: \"$_id.ip\",\n      cantidad_pizzerias: { $sum: 1 },\n    },\n  },\n  { $sort: { cantidad_pizzerias: -1 } },        // 5. la que más\n  { $limit: 1 },                                // 6.\n  {\n    $project: {                                 // 7. el formato pedido\n      _id: 0,\n      ip: \"$_id\",\n      cantidad_pizzerias: \"$cantidad_pizzerias\",\n    },\n  },\n])","hash":"8beee360eb67d02d22c8f82f857541ac03bb913b"},"errores/E03":{"total":0,"filas":[],"titulo":"E3 con error - el país en \"geo\"","enunciado":"Versión del taller: busca el país en el campo geo.","concepto":"error silencioso: geo existe, pero es un objeto GeoJSON {type, coordinates}, no un string","codigo":"db.tweets.find(\n  { geo: { $in: [\"Argentina\", \"Brasil\"] } }, // ningún documento tiene geo == \"Argentina\" -> [] sin error\n  { _id: 0, retweet_count: 1 },\n)","hash":"049954db86e8f86d90d476cb56181cc19318b121"},"errores/E04":{"total":0,"filas":[],"titulo":"E4 con error - el campo \"language\"","enunciado":"Versión del taller: filtra por un campo language que no existe.","concepto":"error silencioso: en SQL sería \"column does not exist\"; en Mongo, simplemente nadie matchea","codigo":"db.tweets.find(\n  {\n    retweet_count: { $gte: 200000 },\n    language: \"es\", // el campo se llama lang\n  },\n  { _id: 0, user_id: 1 },\n)","hash":"820f5318d14fb49245e4882d65bbf20962110fe9"},"errores/E06":{"total":0,"filas":[],"titulo":"E6 con error - \"name\" en la raíz","enunciado":"Versión del taller: busca name en la raíz del documento.","concepto":"error silencioso: name vive dentro del subdocumento user","codigo":"db.tweets.find(\n  { name: /Juan/ }, // debería ser \"user.name\"\n  { _id: 0, name: 1, screen_name: 1 },\n)","hash":"f4caf80b2769842ee0fa5f53841bb1b6abae9dcd"},"errores/E10":{"total":1,"filas":[{"_id":"entities.user_mentions.screen_name","menciones":105619}],"titulo":"E10 con error - el $ que falta","enunciado":"Versión del taller: agrupa por un string en vez de por el valor del campo.","concepto":"\"entities.user_mentions.screen_name\" sin $ es un texto literal: todos caen en UN solo grupo","codigo":"db.tweets.aggregate([\n  { $unwind: \"$entities.user_mentions\" }, // (sin $ acá Mongo sí da error: \"path must be prefixed with $\")\n  {\n    $group: {\n      _id: \"entities.user_mentions.screen_name\", // sin $: el mismo string para todos los documentos\n      menciones: { $sum: 1 },\n    },\n  },\n  { $sort: { menciones: -1 } },\n  { $limit: 5 },\n])","hash":"e60cc188fc4334910c742f950c7d1d36e7949b6d"},"errores/P":{"total":0,"filas":[],"titulo":"Pizzagram con error - sin $ en el group","enunciado":"La versión del taller (con { $unwind: {\"$comentarios\"} } corregido para que al menos corra).","concepto":"sin $, pizzeria e ip son strings fijos: un único grupo con TODOS los comentarios","codigo":"db.publicaciones.aggregate([\n  { $unwind: \"$comentarios\" },\n  {\n    $group: {\n      _id: { pizzeria: \"pizzeria\", ip: \"ip\" },   // debería ser \"$pizzeria\" y \"$comentarios.ip\"\n      cantidad_comentarios: { $sum: 1 },\n    },\n  },\n  { $match: { cantidad_comentarios: 10 } },      // el único grupo tiene miles -> no pasa nadie\n  {\n    $group: {\n      _id: { ip: \"ip\" },                          // debería ser \"$_id.ip\"\n      cantidad_pizzerias_ips: { $sum: 1 },\n    },\n  },\n  { $sort: { cantidad_pizzerias_ips: -1 } },\n  { $limit: 1 },\n  {\n    $project: {\n      _id: 0,\n      ip: \"$_id\",\n      cantidad_pizzerias: \"$cantidad_pizzerias_ips\",\n    },\n  },\n])","hash":"76cd53f06722f17dba73c46d65f3ef586c0592ba"},"P/etapa1":{"total":3817,"filas":[{"_id":"6b04b7f97445980ecdcbab5b","idPublicación":"FE4AFAB11171","pizzeria":"El Fortín de la Fugazzeta","fecha_hora":"2025-03-04 21:56:14","texto":"Nueva Napolitana a la piedra, venite!","comentarios":{"username":"tincho","ip":"155.66.244.178","texto":"Me vino con cucaracha, un asco"}},{"_id":"6b04b7f97445980ecdcbab5b","idPublicación":"FE4AFAB11171","pizzeria":"El Fortín de la Fugazzeta","fecha_hora":"2025-03-04 21:56:14","texto":"Nueva Napolitana a la piedra, venite!","comentarios":{"username":"mati_c","ip":"201.168.65.119","texto":"Atención de diez"}},{"_id":"6b04b7f97445980ecdcbab5b","idPublicación":"FE4AFAB11171","pizzeria":"El Fortín de la Fugazzeta","fecha_hora":"2025-03-04 21:56:14","texto":"Nueva Napolitana a la piedra, venite!","comentarios":{"username":"agus.m","ip":"175.65.157.49","texto":"La fainá estaba fría"}},{"_id":"6b04b7f97445980ecdcbab5b","idPublicación":"FE4AFAB11171","pizzeria":"El Fortín de la Fugazzeta","fecha_hora":"2025-03-04 21:56:14","texto":"Nueva Napolitana a la piedra, venite!","comentarios":{"username":"pablitus","ip":"211.105.135.150","texto":"Me vino con cucaracha, un asco"}},{"_id":"6b04b7f97445980ecdcbab5b","idPublicación":"FE4AFAB11171","pizzeria":"El Fortín de la Fugazzeta","fecha_hora":"2025-03-04 21:56:14","texto":"Nueva Napolitana a la piedra, venite!","comentarios":{"username":"flor","ip":"195.223.162.93","texto":"Meh, normalita"}},{"_id":"6b04b7f97445980ecdcbab5b","idPublicación":"FE4AFAB11171","pizzeria":"El Fortín de la Fugazzeta","fecha_hora":"2025-03-04 21:56:14","texto":"Nueva Napolitana a la piedra, venite!","comentarios":{"username":"mati_c","ip":"130.70.187.24","texto":"Meh, normalita"}}]},"P/etapa2":{"total":3129,"filas":[{"_id":{"pizzeria":"Napolitana Norte","ip":"132.188.11.151"},"comentarios":1},{"_id":{"pizzeria":"Ñoqui & Pizza","ip":"146.95.68.58"},"comentarios":1},{"_id":{"pizzeria":"La Fugazza Loca","ip":"157.237.10.120"},"comentarios":1},{"_id":{"pizzeria":"La Esquina de la Muzza","ip":"150.34.46.226"},"comentarios":1},{"_id":{"pizzeria":"El Cuartito de Almagro","ip":"135.114.11.152"},"comentarios":1},{"_id":{"pizzeria":"El Cuartito de Almagro","ip":"120.238.112.40"},"comentarios":1}]},"P/etapa3":{"total":16,"filas":[{"_id":{"pizzeria":"Pizza al Paso Once","ip":"181.15.99.200"},"comentarios":10},{"_id":{"pizzeria":"Las Cuartetas de Boedo","ip":"45.230.18.7"},"comentarios":10},{"_id":{"pizzeria":"La Porteña de Flores","ip":"200.123.4.56"},"comentarios":10},{"_id":{"pizzeria":"La Fugazza Loca","ip":"45.230.18.7"},"comentarios":10},{"_id":{"pizzeria":"Horno de Barro Palermo","ip":"45.230.18.7"},"comentarios":10},{"_id":{"pizzeria":"Banchero del Sur","ip":"45.230.18.7"},"comentarios":10}]},"P/etapa4":{"total":4,"filas":[{"_id":"200.123.4.56","cantidad_pizzerias":3},{"_id":"181.15.99.200","cantidad_pizzerias":5},{"_id":"45.230.18.7","cantidad_pizzerias":7},{"_id":"190.0.66.6","cantidad_pizzerias":1}]},"P/etapa5":{"total":4,"filas":[{"_id":"45.230.18.7","cantidad_pizzerias":7},{"_id":"181.15.99.200","cantidad_pizzerias":5},{"_id":"200.123.4.56","cantidad_pizzerias":3},{"_id":"190.0.66.6","cantidad_pizzerias":1}]},"P/etapa6":{"total":1,"filas":[{"_id":"45.230.18.7","cantidad_pizzerias":7}]},"P/etapa7":{"total":1,"filas":[{"ip":"45.230.18.7","cantidad_pizzerias":7}]},"explain/antes":{"etapa":"COLLSCAN","plan":"COLLSCAN","docsExaminados":100000,"keysExaminadas":0,"devueltos":61,"ms":82},"explain/despues":{"etapa":"IXSCAN","plan":"FETCH <- IXSCAN","docsExaminados":61,"keysExaminadas":61,"devueltos":61,"ms":1},"shards/hash":[25029,24688,25158,25125],"shards/rango":[32875,9232,27964,29929],"shards/por_hora":[6377,7137,7465,6256,3754,1888,925,573,545,1286,2457,3446,3993,4147,4517,4956,5207,5144,4540,4310,4568,4887,5570,6052],"shards/lang":[{"valor":"es","tweets":86434},{"valor":"und","tweets":7447},{"valor":"en","tweets":3131},{"valor":"pt","tweets":1219},{"valor":"resto","tweets":1769}]};</script>
+<!-- RESULTADOS:FIN -->
+
+<script>
+(() => {
+  const BLOQUES = { 1: "Documento vs tabla", 2: "Índices y escala", 3: "Pipeline de agregación", 4: "Pizzagram" };
+  const R = () => window.RESULTADOS || {};
+  const $ = (s, el = document) => el.querySelector(s);
+  const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+  const escenario = $(".escenario"), indice = $(".indice"), notas = $(".panel-notas"), progreso = $(".progreso");
+
+  /* ---------------- resaltado de código ---------------- */
+  const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const TOKENS = {
+    js: /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)|(\/(?![\/*])(?:\\.|[^\/\n\\])+\/[gimsuy]*)(?=\s*[,}\)\]])|(\$[A-Za-z_]\w*)|(\b(?:db|declare|const|let|var|new|true|false|null|return|function)\b)|(\b\d+(?:\.\d+)?\b)|([A-Za-z_][\w.]*|"[^"\n]*")(?=\s*:)/g,
+    py: /(#[^\n]*)|("""[\s\S]*?"""|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|(\bNONE\b)|(\$[A-Za-z_]\w*)|(\b(?:def|return|for|in|if|else|import|from|print|None|True|False|with|as|not|and|or)\b)|(\b\d+(?:\.\d+)?\b)|(\bNONE\b)/g,
+    sql: /(--[^\n]*)|('(?:''|[^'])*')|(\bNONE\b)|(\bNONE\b)|(\b(?:SELECT|FROM|WHERE|GROUP|BY|HAVING|ORDER|DESC|ASC|LIMIT|JOIN|ON|AND|OR|NOT|IN|COUNT|SUM|AVG|AS|CREATE|TABLE|ALTER|ADD|COLUMN|NULL|IS|INSERT|INTO|VALUES|UPDATE|SET|PRIMARY|KEY|REFERENCES|INDEX|INNER|LEFT|DISTINCT)\b)|(\b\d+(?:\.\d+)?\b)|(\bNONE\b)/gi,
+  };
+  const CLASES = ["tk-com", "tk-str", "tk-rx", "tk-op", "tk-kw", "tk-num", "tk-key"];
+  function resaltar(texto, lang) {
+    const re = TOKENS[lang] || TOKENS.js;
+    let out = "", ult = 0;
+    texto.replace(re, (m, ...g) => {
+      const pos = g[g.length - 2];
+      const i = g.slice(0, 7).findIndex(x => x !== undefined);
+      out += esc(texto.slice(ult, pos)) + `<span class="${CLASES[i]}">${esc(m)}</span>`;
+      ult = pos + m.length;
+      return m;
+    });
+    return out + esc(texto.slice(ult));
+  }
+  function rango(spec) {
+    const s = new Set();
+    (spec || "").split(",").map(x => x.trim()).filter(Boolean).forEach(p => {
+      const [a, b] = p.split("-").map(Number);
+      for (let i = a; i <= (b || a); i++) s.add(i);
+    });
+    return s;
+  }
+  /** Saca el comentario // de una línea (respetando strings). null si la línea era solo comentario. */
+  function quitarComentario(l) {
+    let q = null;
+    for (let i = 0; i < l.length; i++) {
+      const c = l[i];
+      if (q) { if (c === "\\") i++; else if (c === q) q = null; }
+      else if (c === '"' || c === "'" || c === "`") q = c;
+      else if (c === "/" && l[i + 1] === "/") {
+        const antes = l.slice(0, i).replace(/\s+$/, "");
+        return antes.trim() ? antes : null;
+      }
+    }
+    return l;
+  }
+  function pintarCodigo(pre) {
+    if (pre.dataset.pintado) return;
+    let texto = pre.textContent.replace(/^\n/, "").replace(/\s+$/, "");
+    if (pre.dataset.clave) {
+      const r = R()[pre.dataset.clave];
+      if (!r) { pre.outerHTML = `<div class="falta-captura">falta captura: ${pre.dataset.clave}</div>`; return; }
+      texto = r.codigo;
+    }
+    const mostrar = rango(pre.dataset.lineas), res = rango(pre.dataset.resaltar), err = rango(pre.dataset.error);
+    // Los comentarios de los resueltos son para leer en el editor; en la diapo se ocultan
+    // (salvo data-comentarios). La numeración de líneas sigue siendo la del archivo.
+    const sinComentarios = pre.dataset.clave && !("comentarios" in pre.dataset);
+    const crudas = texto.split("\n").map(l => sinComentarios ? quitarComentario(l) : l);
+    const lineas = crudas.map(l => l === null ? null : resaltar(l, pre.dataset.lang || "js"));
+    let ultimaMostrada = 0;
+    pre.innerHTML = lineas.map((l, i) => {
+      const n = i + 1;
+      if (l === null) return null;
+      if (mostrar.size && !mostrar.has(n)) return null;
+      // si se saltearon líneas del medio, se marca con "…"
+      const salto = mostrar.size && ultimaMostrada && n > ultimaMostrada + 1 && lineas.slice(ultimaMostrada, n - 1).some(x => x !== null)
+        ? `<span class="linea salto">  …</span>` : "";
+      ultimaMostrada = n;
+      const c = ["linea"];
+      if (res.size && !res.has(n) && !err.has(n)) c.push("atenuada");
+      if (res.has(n)) c.push("resaltada");
+      if (err.has(n)) c.push("error");
+      return salto + `<span class="${c.join(" ")}" data-n="${n}">${l || " "}</span>`;
+    }).filter(x => x !== null).join("");
+    pre.dataset.pintado = "1";
+  }
+
+  /* ---------------- resultados capturados ---------------- */
+  const leer = (o, ruta) => ruta.split(".").reduce((a, k) => (a == null ? undefined : a[k]), o);
+  function corto(v) {
+    if (v === undefined) return "—";
+    if (v === null) return "null";
+    if (Array.isArray(v)) {
+      // en tablas, los arrays se abrevian: [a, b, … ] (el largo suele estar en otra columna)
+      const reales = v.filter(x => !(typeof x === "string" && x.startsWith("... +")));
+      const extra = v.length - reales.length ? Number(String(v[v.length - 1]).slice(5)) : 0;
+      const resto = reales.length - 2 + extra;
+      return `[${reales.slice(0, 2).map(x => JSON.stringify(x)).join(", ")}${resto > 0 ? `, … +${resto}` : ""}]`;
+    }
+    if (typeof v === "object") return JSON.stringify(v);
+    return String(v);
+  }
+  const fmt = n => typeof n === "number" ? n.toLocaleString("es-AR") : n;
+  function pintarResultado(el) {
+    if (el.dataset.pintado) return;
+    el.dataset.pintado = "1";
+    const r = R()[el.dataset.clave];
+    if (!r) { el.innerHTML = `<div class="falta-captura">falta captura: ${esc(el.dataset.clave)}</div>`; return; }
+    const tipo = el.dataset.tipo;
+    const titulo = el.dataset.titulo || "resultado";
+    if (tipo === "kv") {
+      const campos = (el.dataset.cols || Object.keys(r).join(",")).split(",");
+      el.innerHTML = `<div class="cab"><span>${esc(titulo)}</span></div><dl class="kv">` +
+        campos.map(c => { const [k, lab] = c.split(":"); return `<dt>${esc(lab || k)}</dt><dd>${esc(fmt(r[k]))}</dd>`; }).join("") + "</dl>";
+      return;
+    }
+    if (tipo === "barras") {
+      const datos = Array.isArray(r) ? r : r.filas;
+      const etiquetas = el.dataset.etiquetas ? el.dataset.etiquetas.split(",") : null;
+      const valores = datos.map(d => typeof d === "number" ? d : d[el.dataset.valor || "tweets"]);
+      const nombres = datos.map((d, i) => etiquetas ? etiquetas[i] : (typeof d === "object" ? d[el.dataset.etiqueta || "valor"] : String(i)));
+      const max = Math.max(...valores), calientes = rango(el.dataset.calientes);
+      el.innerHTML = `<div class="cab"><span>${esc(titulo)}</span><span class="total">${fmt(valores.reduce((a, b) => a + b, 0))} tweets</span></div>` +
+        `<div class="barras ${valores.length > 12 ? "angostas" : ""}">` + valores.map((v, i) =>
+          `<div class="b ${calientes.has(i + 1) ? "caliente" : ""}"><span class="v">${fmt(v)}</span><div class="r" style="height:${(v / max * 100).toFixed(1)}%;transition-delay:${Math.round(i * 500 / valores.length)}ms"></div><span class="l">${esc(nombres[i])}</span></div>`).join("") + "</div>";
+      return;
+    }
+    const max = Number(el.dataset.max || 10), filas = r.filas.slice(0, max);
+    const pie = r.total === 0 ? "0 documentos" : `${fmt(r.total)} documento${r.total === 1 ? "" : "s"}${r.total > filas.length ? ` · mostrando ${filas.length}` : ""}`;
+    let cuerpo;
+    if (r.total === 0) {
+      cuerpo = `<div class="vacio-msg">[ ]<small>Ningún error, ninguna advertencia: simplemente nada matcheó.</small></div>`;
+      el.classList.add("vacio");
+    } else if (el.dataset.cols) {
+      const cols = el.dataset.cols.split(",").map(c => { const [ruta, lab] = c.split(":"); return { ruta, lab: lab || ruta }; });
+      // ancho de cada columna proporcional a su contenido más largo (acotado)
+      // columnas con valores sin espacios (ips, números, ids) no se pueden partir: piden su ancho completo
+      const largos = cols.map(c => {
+        const textos = filas.map(f => { const v = leer(f, c.ruta); return typeof v === "number" ? String(fmt(v)) : corto(v); });
+        const maximo = Math.max(c.lab.length, ...textos.map(t => t.length));
+        const palabra = Math.max(c.lab.length, ...textos.flatMap(t => t.split(" ").map(w => w.length)));
+        return Math.max(palabra, Math.min(maximo, 16), c.lab.length + 1, 4) + 2;
+      });
+      const suma = largos.reduce((a, b) => a + b, 0);
+      cuerpo = `<table><colgroup>${largos.map(l => `<col style="width:${(l / suma * 100).toFixed(1)}%">`).join("")}</colgroup><thead><tr>${cols.map(c => `<th>${esc(c.lab)}</th>`).join("")}</tr></thead><tbody>` +
+        filas.map(f => `<tr>${cols.map(c => { const v = leer(f, c.ruta); return `<td class="${typeof v === "number" ? "num" : ""}" title="${esc(corto(v))}">${esc(typeof v === "number" ? fmt(v) : corto(v))}</td>`; }).join("")}</tr>`).join("") + "</tbody></table>";
+    } else {
+      cuerpo = `<pre class="json">${esc(filas.map(f => JSON.stringify(f, null, el.dataset.compacto ? 0 : 1)).join("\n"))}</pre>`;
+    }
+    el.innerHTML = `<div class="cab"><span>${esc(titulo)}</span><span class="total">${pie}</span></div>${cuerpo}`;
+  }
+
+  /* ---------------- deck ---------------- */
+  const deck = window.deck = { slides: [], actual: 0, total: 0, paso: 0 };
+
+  function grupos(s) {
+    if (s._grupos) return s._grupos;
+    let auto = 0;
+    const g = new Map();
+    $$(".paso", s).forEach(el => {
+      const n = el.dataset.paso ? Number(el.dataset.paso) : ++auto;
+      auto = Math.max(auto, n);
+      el._grupo = n;
+      if (!g.has(n)) g.set(n, []);
+      g.get(n).push(el);
+    });
+    s._grupos = [...g.keys()].sort((a, b) => a - b);
+    return s._grupos;
+  }
+
+  function construirIndice() {
+    const items = deck.slides.map((s, i) => ({ s, i }));
+    const link = ({ s, i }) => `<a data-ir="${i}"><span class="n">${i + 1}</span><span>${esc(s.dataset.titulo || "")}</span></a>`;
+    let html = items.filter(x => x.s.dataset.bloque === "0" && x.i === 0).map(link).join("");
+    for (const [n, nombre] of Object.entries(BLOQUES)) {
+      const propios = items.filter(x => x.s.dataset.bloque === n);
+      html += `<div class="bloque" data-bloque="${n}"><div class="bloque-titulo">${n} · ${esc(nombre)}</div><div class="lista">${propios.map(link).join("")}</div></div>`;
+    }
+    html += items.filter(x => x.s.dataset.bloque === "0" && x.i !== 0).map(link).join("");
+    html += `<div class="ayuda"><kbd>←</kbd> <kbd>→</kbd> navegar · <kbd>M</kbd> índice · <kbd>N</kbd> notas · <kbd>F</kbd> pantalla completa · <kbd>Inicio</kbd>/<kbd>Fin</kbd></div>`;
+    indice.innerHTML = html;
+  }
+
+  deck.reconstruir = () => {
+    const todas = $$("section.slide", escenario);
+    todas.forEach(s => s.classList.toggle("excluida", s.classList.contains("opcional") && !R()[s.dataset.requiere]));
+    deck.slides = todas.filter(s => !s.classList.contains("excluida"));
+    deck.total = deck.slides.length;
+    deck.slides.forEach((s, i) => {
+      if (!$(".marca-bloque", s) && BLOQUES[s.dataset.bloque]) s.insertAdjacentHTML("afterbegin", `<div class="marca-bloque">${s.dataset.bloque} · ${BLOQUES[s.dataset.bloque]}</div>`);
+      let num = $(".numero", s);
+      if (!num) { s.insertAdjacentHTML("beforeend", `<div class="numero"></div>`); num = $(".numero", s); }
+      num.textContent = `${i + 1} / ${deck.slides.length}`;
+    });
+    construirIndice();
+    deck.ir(Math.min(deck.actual, deck.total - 1), deck.paso);
+  };
+
+  function mostrar() {
+    const s = deck.slides[deck.actual];
+    const g = grupos(s), visibles = new Set(g.slice(0, deck.paso));
+    $$(".paso", s).forEach(el => el.classList.toggle("visible", visibles.has(el._grupo)));
+    // animaciones: data-anim="clase" se aplica cuando su paso (o la diapo) está visible
+    $$("[data-anim]", s).forEach(el => {
+      const p = el.closest(".paso");
+      const on = !p || p.classList.contains("visible");
+      el.dataset.anim.split(" ").forEach(c => el.classList.toggle(c, on));
+    });
+    // data-quitar="clase": se saca la clase cuando el paso está visible (estado previo -> nuevo)
+    $$("[data-en-paso]", s).forEach(el => {
+      const n = Number(el.dataset.enPaso), on = deck.paso >= n;
+      (el.dataset.agregar || "").split(" ").filter(Boolean).forEach(c => el.classList.toggle(c, on));
+      (el.dataset.quitar || "").split(" ").filter(Boolean).forEach(c => el.classList.toggle(c, !on));
+    });
+    $$(".indice a", indice).forEach(a => a.classList.toggle("actual", Number(a.dataset.ir) === deck.actual));
+    progreso.style.width = `${((deck.actual + 1) / deck.total) * 100}%`;
+    const n = $("aside.notas", s);
+    notas.innerHTML = n ? n.innerHTML : "<p class='tenue'>(sin notas)</p>";
+  }
+
+  deck.ir = (i, paso = 0) => {
+    i = Math.max(0, Math.min(deck.total - 1, i));
+    const s = deck.slides[i];
+    deck.slides.forEach(x => x.classList.toggle("activa", x === s));
+    $$("pre.codigo", s).forEach(pintarCodigo);
+    $$(".resultado", s).forEach(pintarResultado);
+    $$(".barras", s).forEach(b => { b.classList.remove("listo"); requestAnimationFrame(() => requestAnimationFrame(() => b.classList.add("listo"))); });
+    deck.actual = i;
+    deck.paso = Math.max(0, Math.min(paso, grupos(s).length));
+    mostrar();
+    if (location.hash !== `#${i + 1}`) history.replaceState(null, "", `#${i + 1}`);
+  };
+  deck.siguiente = () => deck.paso < grupos(deck.slides[deck.actual]).length ? (deck.paso++, mostrar()) : deck.ir(deck.actual + 1);
+  deck.anterior = () => deck.paso > 0 ? (deck.paso--, mostrar()) : deck.ir(deck.actual - 1, Infinity);
+  deck.revelarTodo = () => { deck.paso = grupos(deck.slides[deck.actual]).length; mostrar(); };
+
+  /* ---------------- escala, teclado, índice ---------------- */
+  function escalar() {
+    const k = Math.min(innerWidth / 1280, innerHeight / 720);
+    escenario.style.transform = `translate(-50%, -50%) scale(${k})`;
+  }
+  addEventListener("resize", escalar);
+  const alternarIndice = (v) => indice.classList.toggle("abierto", v);
+  $(".boton-indice").addEventListener("click", () => alternarIndice());
+  indice.addEventListener("click", e => {
+    const a = e.target.closest("a[data-ir]");
+    if (a) { deck.ir(Number(a.dataset.ir)); return; }
+    const t = e.target.closest(".bloque-titulo");
+    if (t) t.parentElement.classList.toggle("colapsado");
+  });
+  addEventListener("keydown", e => {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    const k = e.key;
+    if (["ArrowRight", " ", "PageDown", "ArrowDown", "Enter"].includes(k)) { e.preventDefault(); deck.siguiente(); }
+    else if (["ArrowLeft", "PageUp", "ArrowUp", "Backspace"].includes(k)) { e.preventDefault(); deck.anterior(); }
+    else if (k === "Home") deck.ir(0);
+    else if (k === "End") deck.ir(deck.total - 1);
+    else if (k === "m" || k === "M") alternarIndice();
+    else if (k === "Escape") alternarIndice(false);
+    else if (k === "n" || k === "N") notas.classList.toggle("visible");
+    else if (k === "f" || k === "F") document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.();
+  });
+  addEventListener("hashchange", () => { const n = parseInt(location.hash.slice(1), 10); if (n && n - 1 !== deck.actual) deck.ir(n - 1); });
+
+  escalar();
+  deck.actual = Math.max(0, (parseInt(location.hash.slice(1), 10) || 1) - 1);
+  deck.reconstruir();
+})();
+</script>
+</body>
+</html>

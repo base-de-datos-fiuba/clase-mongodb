@@ -1,0 +1,11 @@
+line-length = 120
+target-version = "py310"
+# Carpetas desde donde se importan módulos propios (para ordenar imports: propios al final)
+src = ["python", "python/ejemplos", "entorno", "docente"]
+
+[lint]
+extend-select = ["I"]   # isort: imports ordenados
+
+[lint.per-file-ignores]
+# Script suelto del docente: necesita sumar python/ al sys.path antes de importar clase/.
+"docente/capturar_resultados.py" = ["E402"]

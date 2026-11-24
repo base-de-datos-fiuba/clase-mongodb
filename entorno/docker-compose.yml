@@ -1,0 +1,47 @@
+# Uso (desde esta carpeta, entorno/):
+#   docker compose up -d mongo          levanta Mongo en localhost:27017
+#   docker compose run --rm seed        carga datos/ en la base (idempotente)
+#   docker compose run --rm cli E9      corre una consulta sin instalar Python
+name: clase-mongo
+
+services:
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 3s
+      retries: 20
+
+  seed:
+    build:
+      context: ..
+      dockerfile: entorno/Dockerfile
+    environment:
+      MONGO_URI: mongodb://mongo:27017
+    volumes:
+      - ./datos:/app/entorno/datos:ro
+    command: ["python3", "entorno/cargar_datos.py"]
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  cli:
+    build:
+      context: ..
+      dockerfile: entorno/Dockerfile
+    profiles: ["cli"]
+    environment:
+      MONGO_URI: mongodb://mongo:27017
+    volumes:
+      - ../consultas:/app/consultas:ro
+    entrypoint: ["python3", "python/execute_query.py"]
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+volumes:
+  mongo-data:
